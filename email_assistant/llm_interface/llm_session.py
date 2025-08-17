@@ -10,7 +10,7 @@ import boto3
 import json
 import os
 
-from disk import extract_text, save_draft_to_file
+from email_assistant.llm_interface.disk import extract_text, save_draft_to_file
 
 load_dotenv()
 AWS_BEARER_TOKEN_BEDROCK = os.getenv("AWS_BEARER_TOKEN_BEDROCK")

@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "email-assistant"
+version = "0.1.0"
+description = "Interactive email summarizing and drafting assistant"
+authors = [{name = "Raymond Allen"}]
+dependencies = ["click"]
+
+[project.scripts]
+eassistant = "email_assistant.assistant.cli:cli"
