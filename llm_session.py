@@ -23,7 +23,7 @@ model_id = "eu.anthropic.claude-3-7-sonnet-20250219-v1:0"
 SUMMARIZE_PREFIX = "Summarize the following email exchange in 2-3 sentences:\n\n"
 EXTRACT_PREFIX = "Extract the key information: sender name, receiver name, sender contact details, receiver contact details,\
         subject, summary (2-3 sentences), in JSON format, from the following email exchange:\n\n"
-DRAFT_PREFIX = "Draft a reply to the following email exchange:\n\n"
+DRAFT_PREFIX = "Draft a reply to the following email exchange{}:\n\n"
 
 class BedrockSession:
     """
@@ -32,12 +32,9 @@ class BedrockSession:
     Maintains conversation context.
     """
     
-    def __init__(self, text_file_path=None):
+    def __init__(self):
         self.token = AWS_BEARER_TOKEN_BEDROCK
-        self.history = {
-            "user": [],
-            "assistant": []
-        }
+        self.history = []
         self.client = boto3.client(
             'bedrock',
             aws_access_key_id=aws_access_key_id,
@@ -46,9 +43,8 @@ class BedrockSession:
         self.runtime = boto3.client('bedrock-runtime')
         self.model_id = model_id
 
-        if text_file_path:
-            self.load_text(text_file_path)
         self.key_info = None   # placeholder for key info extraction
+        self.last_draft = None # placeholder for last draft reply
     
     def load_text(self, file_path):
 
@@ -66,7 +62,9 @@ class BedrockSession:
         """
 
         # Add the prompt to the conversation history
-        self.history["user"].append(prompt)
+        self.history.append(
+            {"role": "user", "content": prompt}
+            )
 
         body = json.dumps({
             "anthropic_version": "bedrock-2023-05-31",
@@ -92,19 +90,27 @@ class BedrockSession:
         output_text = output["content"][0]["text"]
 
         # Add the response to the conversation history
-        self.history["assistant"].append(output_text)
+        self.history.append(
+            {"role": "assistant", "content": output_text}
+            )
 
         return output_text
 
-    def summarize(self, text: str) -> str:
+    # def summarize(self) -> str:
 
-        prompt = SUMMARIZE_PREFIX + text
+    #     prompt = SUMMARIZE_PREFIX + self.text
 
-        return self.send_prompt(prompt)
+    #     summary = self.send_prompt(prompt)
+    #     print('Summary:\n', summary)
 
-    def extract_key_info(self, text: str) -> str:
+    #     return summary
 
-        prompt = EXTRACT_PREFIX + text
+    def extract_key_info(self):
+        """
+        Extracts key information from the email exchange and stores it in self.key_info.
+        """
+
+        prompt = EXTRACT_PREFIX + self.text
 
         key_info_string =  self.send_prompt(prompt)
 
@@ -114,20 +120,68 @@ class BedrockSession:
         
         try:
             key_info = json.loads(key_info_string)
+            print('Key info extracted:', key_info)
             self.key_info = key_info
         except json.JSONDecodeError:
             error_message = {"error": "Failed to parse key information from the response."}
             print(error_message)
+
+    def draft_reply(self, tone=None) -> str:
+        """
+        Drafts a reply to the email exchange based on the extracted text.
+
+        Args:
+            tone (str): Optional. The tone of the reply (e.g., "formal" etc.).
         
-        return key_info
+        Returns:
+            str: The drafted reply.
+        """
 
-    def draft_reply(self, text: str) -> str:
+        tone_prompt = f" using a {tone} tone" if tone else ""
+        prompt = DRAFT_PREFIX.format(tone_prompt) + self.text
 
-        prompt = DRAFT_PREFIX + text
+        draft = self.send_prompt(prompt)
+        print('Draft reply:\n', draft)
 
-        return self.send_prompt(prompt)
+        self.last_draft = draft
 
-    
+        return draft
+
+    def refine(self, instructions: str) -> str:
+        """
+        Refines the last draft reply based on additional instructions.
+        
+        Args:
+            instructions (str): Instructions for refining the draft.
+        
+        Returns:
+            str: The refined draft reply.
+        """
+        
+        if not self.last_draft:
+            print("No draft reply to refine, drafting first.")
+            _ = self.draft_reply()
+        
+        prompt = f"Refine the following draft reply based on these instructions: {instructions}\n\nDraft:\n{self.last_draft}\n\nSummary:\n{self.key_info.get('summary', '')}"
+        
+        draft = self.send_prompt(prompt)
+        print('Refined draft reply:\n', draft)
+
+        self.last_draft = draft
+
+        return draft
+
+    def save_draft(self) -> None:
+        """
+        Saves the last draft reply to a file.
+        The file is named according to the current date and time, in a directory named 'drafts'.
+        """
+        
+        if not self.last_draft:
+            print("No draft reply to save.")
+            return
+        
+        save_draft_to_file(self.last_draft)    
 
 
 # %%
