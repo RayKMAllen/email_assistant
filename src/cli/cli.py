@@ -11,36 +11,6 @@ def cli(ctx):
     if ctx.invoked_subcommand is None:
         run_shell()
 
-
-# @cli.command()
-# @click.argument("task")
-# def add(task):
-#     """Add a new TASK to the list."""
-#     tasks.append(task)
-#     click.echo(f"✅ Added: {task}")
-
-
-# @cli.command()
-# def list():
-#     """Show all tasks."""
-#     if not tasks:
-#         click.echo("📋 No tasks yet!")
-#     else:
-#         click.echo("\nYour tasks:")
-#         for i, t in enumerate(tasks, start=1):
-#             click.echo(f"{i}. {t}")
-
-
-# @cli.command()
-# @click.argument("index", type=int)
-# def remove(index):
-#     """Remove a task by its INDEX (1-based)."""
-#     try:
-#         removed = tasks.pop(index - 1)
-#         click.echo(f"🗑️ Removed: {removed}")
-#     except IndexError:
-#         click.echo("❌ Invalid index.")
-
 @cli.command()
 @click.argument("path_or_text", type=str, nargs=-1)
 def load(path_or_text):
@@ -56,10 +26,55 @@ def load(path_or_text):
         click.echo(f"⚠️ Error loading email: {e}")
     try:
         session.extract_key_info()
+        click.echo("Type 'draft' to draft a reply, with an optional tone argument (e.g. 'draft formal').")
     except Exception as e:
         click.echo(f"⚠️ Error extracting key info: {e}")
 
+@cli.command()
+@click.argument("tone", type=str, required=False)
+def draft(tone):
+    """Draft a reply to the loaded email."""
+    if session.text is None or session.key_info is None:
+        click.echo("⚠️ Correct email information has not yet been loaded. Please use the 'load' command first.")
+        return
+    try:
+        reply = session.draft_reply(tone=tone)
+        click.echo("Drafted reply:\n")
+        click.echo(reply)
+        click.echo("Type 'save' to save the draft to a file.")
+        click.echo("Type 'refine' with additional instructions to refine the draft.")
+    except Exception as e:
+        click.echo(f"⚠️ Error drafting reply: {e}")
 
+@cli.command()
+@click.argument("filepath", type=click.Path(writable=True), required=False)
+def save(filepath=None):
+    """Save the drafted reply to a file."""
+    if session.last_draft is None:
+        click.echo("⚠️ No draft available. Please use the 'draft' command first.")
+        return
+    try:
+        session.save_draft(filepath)
+        click.echo("Draft saved successfully." if filepath else "Draft saved to default location.")
+    except Exception as e:
+        click.echo(f"⚠️ Error saving draft: {e}")
+
+@cli.command()
+@click.argument("instructions", type=str, nargs=-1)
+def refine(instructions):
+    """Refine the drafted reply with additional instructions."""
+    if session.last_draft is None:
+        click.echo("⚠️ No draft available. Please use the 'draft' command first.")
+        return
+    instructions = " ".join(instructions)
+    try:
+        refined_reply = session.refine(instructions)
+        click.echo("Refined reply:\n")
+        click.echo(refined_reply)
+        click.echo("Type 'save' to save the refined draft to a file.")
+        click.echo("Type 'refine' with additional instructions to further refine.")
+    except Exception as e:
+        click.echo(f"⚠️ Error refining reply: {e}")
 
 @cli.command()
 def exit():

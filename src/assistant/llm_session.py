@@ -143,7 +143,6 @@ class BedrockSession:
         prompt = DRAFT_PREFIX.format(tone_prompt) + self.text
 
         draft = self.send_prompt(prompt)
-        print('Draft reply:\n', draft)
 
         self.last_draft = draft
 
@@ -167,13 +166,12 @@ class BedrockSession:
         prompt = f"Refine the following draft reply based on these instructions: {instructions}\n\nDraft:\n{self.last_draft}\n\nSummary:\n{self.key_info.get('summary', '')}"
         
         draft = self.send_prompt(prompt)
-        print('Refined draft reply:\n', draft)
 
         self.last_draft = draft
 
         return draft
 
-    def save_draft(self) -> None:
+    def save_draft(self, filepath) -> None:
         """
         Saves the last draft reply to a file.
         The file is named according to the current date and time, in a directory named 'drafts'.
@@ -183,7 +181,7 @@ class BedrockSession:
             print("No draft reply to save.")
             return
         
-        save_draft_to_file(self.last_draft)    
+        save_draft_to_file(self.last_draft, filepath)    
 
 
 # %%
