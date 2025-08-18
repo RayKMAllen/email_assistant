@@ -1,13 +1,24 @@
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "email-assistant"
 version = "0.1.0"
 description = "Interactive email summarizing and drafting assistant"
-authors = [{name = "Raymond Allen"}]
-dependencies = ["click"]
+authors = [
+    {name = "Raymond Allen",email = "raymondkyrleallen@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "click (>=8.2.1,<9.0.0)",
+    "dotenv (>=0.9.9,<0.10.0)",
+    "boto3 (>=1.40.11,<2.0.0)",
+    "datetime (>=5.5,<6.0)",
+    "pymupdf (>=1.26.3,<2.0.0)",
+    "pytest (>=8.4.1,<9.0.0)"
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
 
 [project.scripts]
 eassistant = "cli.cli:cli"

@@ -2,9 +2,9 @@
 
 #### Reasoning for Chosen AWS Services and LLM Models
 
-- **AWS Bedrock** was chosen primarily because it provides access to multiple AWS services via a single API, eliminating the need for further time-consuming setup and configuration. While the project does not currently rely on other AWS services (such as S3, DynamoDB, or Lambda), the broader AWS ecosystem was a strong consideration.
+- **AWS Bedrock** was chosen primarily because it provides access to multiple AWS services via a single API, eliminating the need for further time-consuming setup and configuration. While the project does not currently rely on other AWS services, the availability of the broader AWS ecosystem if necessary was a consideration.
 - **Anthropic Claude 3.7 Sonnet** was chosen for its strong performance on human-style communication. A recent blind comparison of LLMs (https://www.washingtonpost.com/technology/2025/03/26/best-ai-email-assistant/) found that Claude slightly outperformed competitors in this area. I chose Sonnet 3.7 rather than the newer Sonnet 4 since the latter's superior performance on coding and mathematics (https://www.edenai.co/post/claude-sonnet-3-7-vs-claude-sonnet-4) is not useful here, and its performance on generalized reasoning is no better.
-In practice any of the major LLMs would likely be hard to distinguish for this purpose.
+In practice any of the major LLMs would likely be hard to distinguish for simple, professional emails.
 
 #### Chatbot Context Maintenance
 
