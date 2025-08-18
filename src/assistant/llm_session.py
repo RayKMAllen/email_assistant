@@ -9,8 +9,9 @@ from dotenv import load_dotenv
 import boto3
 import json
 import os
+import pprint
 
-from assistant.utils import extract_text, save_draft_to_file
+from assistant.utils import process_path_or_email, save_draft_to_file
 
 load_dotenv()
 AWS_BEARER_TOKEN_BEDROCK = os.getenv("AWS_BEARER_TOKEN_BEDROCK")
@@ -46,9 +47,9 @@ class BedrockSession:
         self.key_info = None   # placeholder for key info extraction
         self.last_draft = None # placeholder for last draft reply
     
-    def load_text(self, file_path):
+    def load_text(self, path_or_text):
 
-        self.text = extract_text(file_path)
+        self.text = process_path_or_email(path_or_text)
     
     def send_prompt(self, prompt: str):
         """
@@ -120,11 +121,12 @@ class BedrockSession:
         
         try:
             key_info = json.loads(key_info_string)
-            print('Key info extracted:', key_info)
+            print('Key info extracted:')
+            pprint.pp(key_info)
             self.key_info = key_info
         except json.JSONDecodeError:
-            error_message = {"error": "Failed to parse key information from the response."}
-            print(error_message)
+            error_message = "Failed to parse key information from the response."
+            raise Exception(error_message)
 
     def draft_reply(self, tone=None) -> str:
         """

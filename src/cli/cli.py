@@ -41,6 +41,25 @@ def cli(ctx):
 #     except IndexError:
 #         click.echo("❌ Invalid index.")
 
+@cli.command()
+@click.argument("path_or_text", type=str, nargs=-1)
+def load(path_or_text):
+    """Load an email from a file path or raw text."""
+
+    # combine arguments into a single string
+    path_or_text = " ".join(path_or_text)
+
+    try:
+        session.load_text(path_or_text)
+        click.echo("Email content loaded successfully.")
+    except Exception as e:
+        click.echo(f"⚠️ Error loading email: {e}")
+    try:
+        session.extract_key_info()
+    except Exception as e:
+        click.echo(f"⚠️ Error extracting key info: {e}")
+
+
 
 @cli.command()
 def exit():
@@ -52,14 +71,14 @@ def exit():
 def run_shell():
     """Simple REPL loop for interactive mode."""
     # click.echo("Welcome to the To-Do CLI! Type 'help' to see commands.")
-    click.echo("Welcome! email path?")
+    click.echo("Welcome! To start, please load the email path or content.")
     while True:
         try:
             cmd = input("> ").strip()
             if not cmd:
                 continue
             # if cmd in ("help", "?"):
-            #     click.echo("Available commands: add, list, remove, exit")
+            #     click.echo("Available commands: load, list, remove, exit")
             #     continue
             cli.main(args=cmd.split(), prog_name="eassistant", standalone_mode=False)
         except SystemExit:

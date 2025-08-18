@@ -4,6 +4,23 @@ import datetime
 import os
 import pymupdf
 
+def process_path_or_email(path_or_text: str) -> str:
+    """
+    Processes a file path or raw email content.
+    
+    Args:
+        path_or_email (str): Path to the file or raw email content.
+    
+    Returns:
+        str: Processed text.
+    """
+    if os.path.isfile(path_or_text):
+        print("File found, extracting text...")
+        return extract_text(path_or_text)
+    else:
+        print("File not found, assuming input is raw email content.")
+        return path_or_text
+
 def extract_text_from_pdf(file_path: str) -> str:
     """
     Extracts text from a PDF file using the PyMuPDF library.
@@ -26,8 +43,10 @@ def extract_text(file_path: str) -> str:
     Extracts text from a file based on its type.
     """
     if file_path.endswith(".pdf"):
+        print("Extracting text from PDF...")
         return extract_text_from_pdf(file_path)
     else:
+        print("Extracting text from non-PDF file...")
         with open(file_path, "r") as f:
             return f.read()
 
