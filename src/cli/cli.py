@@ -1,6 +1,6 @@
 import click
 
-from email_assistant.llm_interface.llm_session import BedrockSession
+from assistant.llm_session import BedrockSession
 
 session = BedrockSession()
 

@@ -10,4 +10,4 @@ authors = [{name = "Raymond Allen"}]
 dependencies = ["click"]
 
 [project.scripts]
-eassistant = "email_assistant.assistant.cli:cli"
+eassistant = "cli.cli:cli"
