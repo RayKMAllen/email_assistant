@@ -85,7 +85,6 @@ def exit():
 
 def run_shell():
     """Simple REPL loop for interactive mode."""
-    # click.echo("Welcome to the To-Do CLI! Type 'help' to see commands.")
     click.echo("Welcome! To start, please load the email path or content.")
     while True:
         try:

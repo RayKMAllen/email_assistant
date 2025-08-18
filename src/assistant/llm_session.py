@@ -14,7 +14,6 @@ import pprint
 from assistant.utils import process_path_or_email, save_draft_to_file
 
 load_dotenv()
-AWS_BEARER_TOKEN_BEDROCK = os.getenv("AWS_BEARER_TOKEN_BEDROCK")
 
 aws_access_key_id = os.environ['AWS_KEY']
 aws_secret_access_key = os.environ['AWS_SEC_KEY']
@@ -34,7 +33,6 @@ class BedrockSession:
     """
     
     def __init__(self):
-        self.token = AWS_BEARER_TOKEN_BEDROCK
         self.history = []
         self.client = boto3.client(
             'bedrock',
