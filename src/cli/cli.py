@@ -92,9 +92,9 @@ def run_shell():
             cmd = input("> ").strip()
             if not cmd:
                 continue
-            # if cmd in ("help", "?"):
-            #     click.echo("Available commands: load, list, remove, exit")
-            #     continue
+            if cmd in ("help", "?"):
+                click.echo("Available commands: load, draft, refine, save, exit")
+                continue
             cli.main(args=cmd.split(), prog_name="eassistant", standalone_mode=False)
         except SystemExit:
             break

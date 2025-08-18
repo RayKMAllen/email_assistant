@@ -1,7 +1,7 @@
 """
 Main AWS Bedrock session manager.
 Summarizes, extracts data from emails, drafts replies.
-Maintains conversation context in sesion.
+Maintains conversation context in session.
 """
 #%%
 
@@ -44,8 +44,9 @@ class BedrockSession:
         self.runtime = boto3.client('bedrock-runtime')
         self.model_id = model_id
 
+        self.text = None  # placeholder for email text
         self.key_info = None   # placeholder for key info extraction
-        self.last_draft = None # placeholder for last draft reply
+        self.last_draft = None # placeholder for most recent draft reply
     
     def load_text(self, path_or_text):
 
