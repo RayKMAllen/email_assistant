@@ -31,3 +31,9 @@ In practice any of the major LLMs would likely be hard to distinguish for simple
 - **Boto3 Errors**: AWS errors (e.g., `ClientError`) are caught to prevent crashes and show helpful messages.
 - **Missing Information**: If the user tries to draft or refine a reply before the email conversation is successfully loaded, the system prints a warning and aborts. Similarly, if a user tries to refine or save a draft before one exists, the system prints a warning and either drafts a reply automatically or aborts the save.
 - **General Robustness**: All CLI commands are wrapped with checks and try/except blocks to prevent crashes and display helpful information to the user in case of errors.
+
+#### Development and Testing Environment
+
+- **Operating System**: Windows 11 Pro
+- **Python Version**: 3.12.4
+- **IDE**: Visual Studio Code with Python and AWS extensions
