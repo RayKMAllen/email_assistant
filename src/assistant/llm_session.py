@@ -77,8 +77,11 @@ class BedrockSession:
         except ClientError as e:
             raise Exception(f"Error invoking model: {e}")
 
-        output = json.loads(response["body"].read().decode("utf-8"))
-        output_text = output["content"][0]["text"]
+        try:
+            output = json.loads(response["body"].read().decode("utf-8"))
+            output_text = output["content"][0]["text"]
+        except:
+            raise Exception("Failed to parse model response")
 
         # Add the response to the conversation history
         self.history.append({"role": "assistant", "content": output_text})

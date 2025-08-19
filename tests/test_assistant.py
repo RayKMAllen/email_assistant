@@ -110,6 +110,33 @@ def test_save_draft_no_last_draft(monkeypatch, session, capsys):
     out = capsys.readouterr().out
     assert "No draft reply to save" in out
 
+def test_refine_with_full_history(monkeypatch, session):
+    session.last_draft = "reply"
+    session.key_info = {"summary": "sum"}
+    session.history = [
+        {"role": "user", "content": "hello"},
+        {"role": "assistant", "content": "hi"},
+        {"role": "user", "content": "foo"},
+        {"role": "assistant", "content": "bar"},
+    ]
+    session.send_prompt = MagicMock(return_value="refined with history")
+    result = session.refine("polish", full_history=True)
+    assert session.last_draft == "refined with history"
+    assert result == "refined with history"
+    args = session.send_prompt.call_args[0][0]
+    # Should include all history, summary, last draft, and instruction
+    assert "polish" in args
+    assert "reply" in args
+    assert "hello" in args and "hi" in args and "foo" in args and "bar" in args
+
+
+def test_extract_key_info_handles_empty_response(session):
+    session.text = "email text"
+    session.send_prompt = MagicMock(return_value="")
+    with pytest.raises(Exception) as e:
+        session.extract_key_info()
+    assert "Failed to parse key information" in str(e.value)
+
 
 # --- Tests for utils.py ---
 
