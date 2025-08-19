@@ -10,13 +10,11 @@ import boto3
 import json
 import os
 import pprint
+from botocore.exceptions import ClientError
 
 from assistant.utils import process_path_or_email, save_draft_to_file
 
 load_dotenv()
-
-aws_access_key_id = os.environ['AWS_KEY']
-aws_secret_access_key = os.environ['AWS_SEC_KEY']
 
 model_id = "eu.anthropic.claude-3-7-sonnet-20250219-v1:0"
 
@@ -34,11 +32,7 @@ class BedrockSession:
     
     def __init__(self):
         self.history = []
-        self.client = boto3.client(
-            'bedrock',
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key
-            )
+        self.client = boto3.client('bedrock')
         self.runtime = boto3.client('bedrock-runtime')
         self.model_id = model_id
 
@@ -79,12 +73,15 @@ class BedrockSession:
         accept = 'application/json'
         contentType = 'application/json'
 
-        response = self.runtime.invoke_model(
-            modelId=self.model_id,
-            body=body,
-            accept=accept,
-            contentType=contentType,
-        )
+        try:
+            response = self.runtime.invoke_model(
+                modelId=self.model_id,
+                body=body,
+                accept=accept,
+                contentType=contentType,
+            )
+        except ClientError as e:
+            raise Exception(f"Error invoking model: {e}")
         
         output = json.loads(response["body"].read().decode("utf-8"))
         output_text = output["content"][0]["text"]
