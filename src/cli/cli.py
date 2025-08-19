@@ -62,14 +62,15 @@ def save(filepath=None):
 
 @cli.command()
 @click.argument("instructions", type=str, nargs=-1)
-def refine(instructions):
+@click.option("--full-history", is_flag=True, default=False, help="Use the full user/assistant conversation history for refinement.")
+def refine(instructions, full_history):
     """Refine the drafted reply with additional instructions."""
     if session.last_draft is None:
         click.echo("⚠️ No draft available. Please use the 'draft' command first.")
         return
     instructions = " ".join(instructions)
     try:
-        refined_reply = session.refine(instructions)
+        refined_reply = session.refine(instructions, full_history=full_history)
         click.echo("Refined reply:\n")
         click.echo(refined_reply)
         click.echo("\nType 'save' to save the refined draft to a file.")
@@ -111,7 +112,7 @@ def run_shell():
             if not cmd:
                 continue
             if cmd in ("help", "?"):
-                click.echo("Available commands: load, draft, refine, save, exit")
+                click.echo("Available commands: load, draft, refine, save, info, summary, exit")
                 continue
             cli.main(args=cmd.split(), prog_name="eassistant", standalone_mode=False)
         except SystemExit:

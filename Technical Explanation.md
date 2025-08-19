@@ -8,8 +8,8 @@ In practice any of the major LLMs would likely be hard to distinguish for simple
 
 #### Chatbot Context Maintenance
 
-- The key information when iterating draft replies is a summary of the original conversation, and the previous draft. These are stored in the `BedrockSession` class object and used for refinement.
- - The `BedrockSession` class additionally maintains a `history` list, which stores the sequence of user prompts and model responses.
+- The key information when iterating draft replies is a summary of the original email conversation, and the previous draft. These are stored in the `BedrockSession` class object. By default, this information is formatted together with any new instructions to form the prompt for refining.
+ - The `BedrockSession` class additionally maintains a `history` list, which stores the sequence of user prompts and model responses. The user has the option to include this instead of the summary in the refining prompt. This uses many more tokens and is likely only to be useful if the user wishes to reference a specific earlier draft.
 
 #### Email Processing Implementation
 
@@ -27,6 +27,7 @@ In practice any of the major LLMs would likely be hard to distinguish for simple
 
 #### Error Handling and Fallback Strategies
 
-- **JSON Parsing**: When extracting key info, the code attempts to parse the LLM output as JSON. If parsing fails, an error message is printed and the operation is safely aborted.
+- **JSON Parsing**: If LLM output can't be parsed as JSON, an error is shown and the step is skipped.
+- **Boto3 Errors**: AWS errors (e.g., `ClientError`) are caught to prevent crashes and show helpful messages.
 - **Missing Information**: If the user tries to draft or refine a reply before the email conversation is successfully loaded, the system prints a warning and aborts. Similarly, if a user tries to refine or save a draft before one exists, the system prints a warning and either drafts a reply automatically or aborts the save.
 - **General Robustness**: All CLI commands are wrapped with checks and try/except blocks to prevent crashes and display helpful information to the user in case of errors.

@@ -51,7 +51,7 @@ def test_draft_no_email_loaded(runner, mock_session):
     mock_session.text = None
     mock_session.key_info = None
     result = runner.invoke(cli, ["draft"])
-    assert "⚠️ Correct email information has not yet been loaded" in result.output
+    assert "⚠️ Correct email conversation has not yet been loaded" in result.output
     assert result.exit_code == 0
 
 def test_draft_exception(runner, mock_session):
@@ -91,7 +91,7 @@ def test_refine_success(runner, mock_session):
     assert "Refined reply:" in result.output
     assert "Refined reply" in result.output
     assert "Type 'save' to save the refined draft" in result.output
-    mock_session.refine.assert_called_once_with("make it shorter")
+    mock_session.refine.assert_called_once_with("make it shorter", full_history=False)
 
 def test_refine_no_draft(runner, mock_session):
     mock_session.last_draft = None

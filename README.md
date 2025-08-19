@@ -31,14 +31,10 @@ optional tone and refinement.
 1.  Clone the repository:
     git clone https://github.com/RayKMAllen/email_assistant.git
     
-2.  Set up your `.env` file in the project root:
-    `AWS_KEY=your_aws_access_key     AWS_SEC_KEY=your_aws_secret_key`
-
-3.  Install dependencies and the package itself: 
+2.  Install the package:
     
     ``` sh
     cd email_assistant
-    pip install -r requirements.txt
     pip install -e .
     ```
 
@@ -56,10 +52,9 @@ eassistant
 ### Commands
 
 -   `load <path_or_text>`: Load an email conversation from a file path or raw text.
--   `draft [tone]`: Draft a reply to the loaded email conversation, optionally
-    specifying a tone.
--   `refine <instructions>`: Refine the drafted reply with additional
-    instructions.
+-   `draft [tone]`: Draft a reply to the loaded email conversation, optionally specifying a tone.
+-   `refine <instructions> [--full-history]`: Refine the drafted reply with additional
+    instructions. Use the optional `--full-history` flag to include the entire email conversation context in the refinement.
 -   `save [filepath]`: Save the drafted reply to a file (default:
     `~/drafts/draft_<timestamp>.txt`).
 -   `info`: Show extracted key information from the loaded email conversation.

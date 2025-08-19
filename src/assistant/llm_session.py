@@ -93,15 +93,6 @@ class BedrockSession:
 
         return output_text
 
-    # def summarize(self) -> str:
-
-    #     prompt = SUMMARIZE_PREFIX + self.text
-
-    #     summary = self.send_prompt(prompt)
-    #     print('Summary:\n', summary)
-
-    #     return summary
-
     def extract_key_info(self):
         """
         Extracts key information from the email exchange and stores it in self.key_info.
@@ -144,7 +135,7 @@ class BedrockSession:
 
         return draft
 
-    def refine(self, instructions: str) -> str:
+    def refine(self, instructions: str, full_history: bool = False) -> str:
         """
         Refines the last draft reply based on additional instructions.
         
@@ -159,7 +150,14 @@ class BedrockSession:
             print("No draft reply to refine, drafting first.")
             _ = self.draft_reply()
         
-        prompt = f"Refine the following draft reply based on these instructions: {instructions}\n\nDraft:\n{self.last_draft}\n\nSummary:\n{self.key_info.get('summary', '')}"
+        if full_history:
+            # Include the full assistant conversation history in the prompt
+            prompt = f"Refine the following draft reply based on these instructions and the subsequent history of prompts and responses: {instructions}\n\nDraft:\n{self.last_draft}\n\nAssistant conversation History:\n"
+            for message in self.history:
+                prompt += f"{message['role'].capitalize()}: {message['content']}\n"
+        else:
+            # Use the last draft and summary for refinement
+            prompt = f"Refine the following draft reply based on these instructions and the subsequent summary: {instructions}\n\nDraft:\n{self.last_draft}\n\nSummary:\n{self.key_info.get('summary', '')}"
         
         draft = self.send_prompt(prompt)
 
