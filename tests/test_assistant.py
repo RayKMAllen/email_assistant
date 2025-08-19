@@ -4,6 +4,7 @@ from unittest.mock import patch, MagicMock
 from src.assistant.llm_session import BedrockSession
 from src.assistant import utils
 
+
 @pytest.fixture
 def session():
     with patch("assistant.llm_session.boto3.client") as mock_boto:
@@ -12,12 +13,17 @@ def session():
         mock_boto.side_effect = [mock_client, mock_runtime]
         yield BedrockSession()
 
+
 def test_send_prompt_adds_to_history_and_returns_response(session):
     session.runtime.invoke_model = MagicMock()
     fake_response = {
-        "body": MagicMock(read=MagicMock(return_value=json.dumps({
-            "content": [{"text": "model output"}]
-        }).encode("utf-8")))
+        "body": MagicMock(
+            read=MagicMock(
+                return_value=json.dumps({"content": [{"text": "model output"}]}).encode(
+                    "utf-8"
+                )
+            )
+        )
     }
     session.runtime.invoke_model.return_value = fake_response
     result = session.send_prompt("hello?")
@@ -25,11 +31,13 @@ def test_send_prompt_adds_to_history_and_returns_response(session):
     assert session.history[-2]["content"] == "hello?"
     assert session.history[-1]["content"] == "model output"
 
+
 def test_extract_key_info_success(monkeypatch, session):
     session.text = "email text"
     session.send_prompt = MagicMock(return_value=json.dumps({"summary": "sum"}))
     session.extract_key_info()
     assert session.key_info == {"summary": "sum"}
+
 
 def test_extract_key_info_json_decode_error(monkeypatch, session):
     session.text = "email text"
@@ -38,13 +46,15 @@ def test_extract_key_info_json_decode_error(monkeypatch, session):
         session.extract_key_info()
     assert "Failed to parse key information" in str(e.value)
 
+
 def test_extract_key_info_strips_json(monkeypatch, session):
     session.text = "email text"
     # Simulate model output with 'json' in first line
-    model_output = "json\n{\"summary\": \"sum\"}\n"
+    model_output = 'json\n{"summary": "sum"}\n'
     session.send_prompt = MagicMock(return_value=model_output)
     session.extract_key_info()
     assert session.key_info == {"summary": "sum"}
+
 
 def test_draft_reply_sets_last_draft(session):
     session.text = "foo"
@@ -56,12 +66,14 @@ def test_draft_reply_sets_last_draft(session):
     args = session.send_prompt.call_args[0][0]
     assert "formal" in args
 
+
 def test_draft_reply_no_tone(session):
     session.text = "foo"
     session.send_prompt = MagicMock(return_value="drafted reply")
     session.draft_reply()
     args = session.send_prompt.call_args[0][0]
     assert "using a" not in args
+
 
 def test_refine_calls_draft_if_no_last_draft(monkeypatch, session):
     session.last_draft = None
@@ -72,6 +84,7 @@ def test_refine_calls_draft_if_no_last_draft(monkeypatch, session):
     assert session.last_draft == "refined"
     assert result == "refined"
     session.draft_reply.assert_called_once()
+
 
 def test_refine_uses_last_draft(monkeypatch, session):
     session.last_draft = "reply"
@@ -85,14 +98,21 @@ def test_refine_uses_last_draft(monkeypatch, session):
     assert "reply" in args
     assert "sum" in args
 
+
 def test_save_draft_no_last_draft(monkeypatch, session, capsys):
     session.last_draft = None
-    monkeypatch.setattr(utils, "save_draft_to_file", lambda *a, **k: (_ for _ in ()).throw(Exception("should not call")))
+    monkeypatch.setattr(
+        utils,
+        "save_draft_to_file",
+        lambda *a, **k: (_ for _ in ()).throw(Exception("should not call")),
+    )
     session.save_draft("file.txt")
     out = capsys.readouterr().out
     assert "No draft reply to save" in out
 
+
 # --- Tests for utils.py ---
+
 
 def test_process_path_or_email_reads_file(tmp_path):
     file = tmp_path / "mail.txt"
@@ -100,10 +120,12 @@ def test_process_path_or_email_reads_file(tmp_path):
     result = utils.process_path_or_email(str(file))
     assert result == "hello"
 
+
 def test_process_path_or_email_returns_text():
     text = "This is not a file path"
     result = utils.process_path_or_email(text)
     assert result == text
+
 
 def test_save_draft_to_file(tmp_path):
     file = tmp_path / "out.txt"
