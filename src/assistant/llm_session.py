@@ -11,13 +11,14 @@ import pprint
 from botocore.exceptions import ClientError
 
 from assistant.utils import process_path_or_email, save_draft_to_file
-
-model_id = "eu.anthropic.claude-3-7-sonnet-20250219-v1:0"
-
-SUMMARIZE_PREFIX = "Summarize the following email exchange in 2-3 sentences:\n\n"
-EXTRACT_PREFIX = "Extract the key information: sender name, receiver name, sender contact details, receiver contact details,\
-        subject, summary (2-3 sentences), in JSON format, from the following email exchange:\n\n"
-DRAFT_PREFIX = "Draft a reply to the following email exchange{}:\n\n"
+from assistant.prompts_params import (
+    MODEL_ID,
+    DRAFT_PREFIX,
+    EXTRACT_PREFIX,
+    MAX_TOKENS,
+    TEMPERATURE,
+    TOP_P,
+)
 
 
 class BedrockSession:
@@ -31,7 +32,7 @@ class BedrockSession:
         self.history = []
         self.client = boto3.client("bedrock")
         self.runtime = boto3.client("bedrock-runtime")
-        self.model_id = model_id
+        self.model_id = MODEL_ID
 
         self.text = None  # placeholder for email text
         self.key_info = None  # placeholder for key info extraction
@@ -57,9 +58,9 @@ class BedrockSession:
         body = json.dumps(
             {
                 "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 256,
-                "temperature": 0.5,
-                "top_p": 0.9,
+                "max_tokens": MAX_TOKENS,
+                "temperature": TEMPERATURE,
+                "top_p": TOP_P,
                 "messages": [{"role": "user", "content": prompt}],
             }
         )
