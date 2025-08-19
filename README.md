@@ -29,13 +29,16 @@ optional tone and refinement.
 ## Installation
 
 1.  Clone the repository:
+
+    ``` sh
     git clone https://github.com/RayKMAllen/email_assistant.git
+    ```
     
 2.  Install the package:
     
     ``` sh
     cd email_assistant
-    pip install -e .
+    pip install .
     ```
 
 ## Usage

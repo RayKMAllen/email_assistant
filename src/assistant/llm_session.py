@@ -5,16 +5,12 @@ Maintains conversation context in session.
 """
 #%%
 
-from dotenv import load_dotenv
 import boto3
 import json
-import os
 import pprint
 from botocore.exceptions import ClientError
 
 from assistant.utils import process_path_or_email, save_draft_to_file
-
-load_dotenv()
 
 model_id = "eu.anthropic.claude-3-7-sonnet-20250219-v1:0"
 

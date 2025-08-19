@@ -4,3 +4,4 @@ drafts
 .env
 __pycache__
 *.egg-info
+build
