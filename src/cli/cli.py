@@ -57,13 +57,19 @@ def draft(tone):
 
 @cli.command()
 @click.argument("filepath", type=click.Path(writable=True), required=False)
-def save(filepath=None):
+@click.option(
+    "--cloud",
+    is_flag=True,
+    default=False,
+    help="Save the draft to AWS S3 instead of a local file.",
+)
+def save(filepath=None, cloud=False):
     """Save the drafted reply to a file."""
     if session.last_draft is None:
         click.echo("⚠️ No draft available. Please use the 'draft' command first.")
         return
     try:
-        session.save_draft(filepath)
+        session.save_draft(filepath, cloud=cloud)
         click.echo(
             "Draft saved successfully."
             if filepath

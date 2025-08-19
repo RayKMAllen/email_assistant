@@ -9,6 +9,7 @@ flowchart TD
     end
 
     subgraph CloudSide["AWS Cloud"]
+        S3[S3 Bucket]
         Bedrock[AWS Bedrock Service]
         Model[LLM Hosted in Bedrock]
     end
@@ -17,6 +18,8 @@ flowchart TD
     CLI <--> Session
 
     Session <--> |Read/Write| FS
+
+    Session --> |Write| S3
 
     Session -->|API: Sends prompt| Bedrock
     Bedrock -->|API: Returns response| Session

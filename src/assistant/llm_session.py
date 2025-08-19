@@ -10,7 +10,7 @@ import json
 import pprint
 from botocore.exceptions import ClientError
 
-from assistant.utils import process_path_or_email, save_draft_to_file
+from assistant.utils import process_path_or_email, save_draft_to_file, save_draft_to_s3
 from assistant.prompts_params import (
     MODEL_ID,
     DRAFT_PREFIX,
@@ -81,8 +81,8 @@ class BedrockSession:
         try:
             output = json.loads(response["body"].read().decode("utf-8"))
             output_text = output["content"][0]["text"]
-        except:
-            raise Exception("Failed to parse model response")
+        except Exception as e:
+            raise Exception(f"Failed to parse model response: {e}")
 
         # Add the response to the conversation history
         self.history.append({"role": "assistant", "content": output_text})
@@ -161,17 +161,22 @@ class BedrockSession:
 
         return draft
 
-    def save_draft(self, filepath) -> None:
+    def save_draft(self, filepath=None, cloud=False) -> None:
         """
-        Saves the last draft reply to a file.
-        The file is named according to the current date and time, in a directory named 'drafts'.
+        Saves the last draft reply.
+        If cloud is True, saves to AWS S3, otherwise saves to a local file.
+        If a filepath is not provided, the file is named according to the current date and time,
+        in a directory named 'drafts'.
         """
 
         if not self.last_draft:
             print("No draft reply to save.")
             return
 
-        save_draft_to_file(self.last_draft, filepath)
+        if cloud:
+            save_draft_to_s3(self.last_draft, filepath)
+        else:
+            save_draft_to_file(self.last_draft, filepath)
 
 
 # %%

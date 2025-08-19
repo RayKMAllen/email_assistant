@@ -74,14 +74,14 @@ def test_save_success_with_filepath(runner, mock_session):
     mock_session.last_draft = "reply"
     result = runner.invoke(cli, ["save", "output.txt"])
     assert "Draft saved successfully." in result.output
-    mock_session.save_draft.assert_called_once_with("output.txt")
+    mock_session.save_draft.assert_called_once_with("output.txt", cloud=False)
 
 
 def test_save_success_default(runner, mock_session):
     mock_session.last_draft = "reply"
     result = runner.invoke(cli, ["save"])
     assert "Draft saved to default location." in result.output
-    mock_session.save_draft.assert_called_once_with(None)
+    mock_session.save_draft.assert_called_once_with(None, cloud=False)
 
 
 def test_save_no_draft(runner, mock_session):
@@ -128,3 +128,20 @@ def test_exit_command(runner):
     result = runner.invoke(cli, ["exit"])
     assert "👋 Goodbye!" in result.output
     assert result.exit_code == 0
+
+
+def test_save_success_cloud_option(runner, mock_session):
+    mock_session.last_draft = "reply"
+    result = runner.invoke(cli, ["save", "--cloud"])
+    assert (
+        "Draft saved to default location." in result.output
+        or "Draft saved successfully." in result.output
+    )
+    mock_session.save_draft.assert_called_once_with(None, cloud=True)
+
+
+def test_save_cloud_exception(runner, mock_session):
+    mock_session.last_draft = "reply"
+    mock_session.save_draft.side_effect = Exception("s3 error")
+    result = runner.invoke(cli, ["save", "--cloud"])
+    assert "⚠️ Error saving draft: s3 error" in result.output

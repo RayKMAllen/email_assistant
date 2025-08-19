@@ -33,8 +33,12 @@ optional tone and refinement.
     ``` sh
     git clone https://github.com/RayKMAllen/email_assistant.git
     ```
-    
-2.  Install the package:
+2.  Specify your S3 bucket name in a `.env` file in the root directory:
+
+    ```
+    BUCKET_NAME=your-s3-bucket-name
+    ```
+3.  Install the package:
     
     ``` sh
     cd email_assistant
@@ -58,8 +62,8 @@ eassistant
 -   `draft [tone]`: Draft a reply to the loaded email conversation, optionally specifying a tone.
 -   `refine <instructions> [--full-history]`: Refine the drafted reply with additional
     instructions. Use the optional `--full-history` flag to include the entire email conversation context in the refinement.
--   `save [filepath]`: Save the drafted reply to a file (default:
-    `~/drafts/draft_<timestamp>.txt`).
+-   `save [filepath] [--cloud]`: Save the drafted reply to a file (default:
+    `~/drafts/draft_<timestamp>.txt`) Use the optional `--cloud` flag to save to AWS S3 bucket.
 -   `info`: Show extracted key information from the loaded email conversation.
 -   `summary`: Show the summary extracted from the loaded email conversation.
 -   `exit`: Exit the CLI.

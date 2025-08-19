@@ -110,6 +110,7 @@ def test_save_draft_no_last_draft(monkeypatch, session, capsys):
     out = capsys.readouterr().out
     assert "No draft reply to save" in out
 
+
 def test_refine_with_full_history(monkeypatch, session):
     session.last_draft = "reply"
     session.key_info = {"summary": "sum"}

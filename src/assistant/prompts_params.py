@@ -2,7 +2,6 @@
 Model configuration parameters and prompt templates
 """
 
-
 MODEL_ID = "eu.anthropic.claude-3-7-sonnet-20250219-v1:0"
 
 SUMMARIZE_PREFIX = "Summarize the following email exchange in 2-3 sentences:\n\n"

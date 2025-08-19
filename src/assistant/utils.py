@@ -3,6 +3,11 @@
 import datetime
 import os
 import pymupdf
+import boto3
+from dotenv import load_dotenv
+
+load_dotenv()
+BUCKET_NAME = os.getenv("BUCKET_NAME")
 
 
 def process_path_or_email(path_or_text: str) -> str:
@@ -54,6 +59,17 @@ def extract_text(file_path: str) -> str:
             return f.read()
 
 
+def make_now_filename() -> str:
+    """
+    Generates a filename based on the current date and time.
+
+    Returns:
+        str: Filename in the format 'draft_YYYYMMDD_HHMMSS.txt'.
+    """
+    now = datetime.datetime.now()
+    return f"draft_{now.strftime('%Y%m%d_%H%M%S')}.txt"
+
+
 def save_draft_to_file(draft: str, filepath=None) -> None:
     """
     Saves the draft text to a file.
@@ -69,17 +85,41 @@ def save_draft_to_file(draft: str, filepath=None) -> None:
         drafts_dir = os.path.join(os.path.expanduser("~"), "drafts")
         os.makedirs(drafts_dir, exist_ok=True)
 
-        # Create a filename based on the current date and time
-        now = datetime.datetime.now()
-        filename = f"draft_{now.strftime('%Y%m%d_%H%M%S')}.txt"
-
+        filename = make_now_filename()
         filepath = os.path.join(drafts_dir, filename)
 
     # Save the draft to the
     print(f"Saving draft to {filepath}...")
-    # with open(os.path.join("drafts", filename), "w") as f:
     with open(filepath, "w") as f:
         f.write(draft)
+
+
+def save_draft_to_s3(draft: str, filepath=None) -> None:
+    """
+    Saves the draft text to an AWS S3 bucket.
+
+    Args:
+        draft (str): The draft text to save.
+        s3: The boto3 S3 client.
+        filepath (str, optional): The S3 object name (key) where the draft will be saved.
+        If None, a filename based on the current date and time will be used.
+    """
+    # Convert string to bytes
+    draft_bytes = draft.encode("utf-8")
+
+    if filepath is None:
+        filename = make_now_filename()
+        filepath = os.path.join("drafts", filename)
+
+    s3 = boto3.client("s3")
+
+    try:
+        s3.put_object(Bucket=BUCKET_NAME, Key=filepath, Body=draft_bytes)
+    except Exception as e:
+        print(f"Failed to save draft to S3: {e}")
+        raise
+
+    print(f"Draft saved to s3://{BUCKET_NAME}/{filepath}")
 
 
 # %%
