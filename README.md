@@ -21,7 +21,6 @@ optional tone and refinement.
 -   Python 3.8+
 -   AWS credentials with access to Bedrock
 -   [click](https://palletsprojects.com/p/click/)
--   [python-dotenv](https://pypi.org/project/python-dotenv/)
 -   [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) (for PDF
     extraction)
 -   [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html)
