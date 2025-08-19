@@ -49,7 +49,7 @@ def draft(tone):
         reply = session.draft_reply(tone=tone)
         click.echo("Drafted reply:\n")
         click.echo(reply)
-        click.echo("\nType 'save' to save the draft to a file.")
+        click.echo("\nType 'save' to save the draft to a file (--cloud to save to S3).")
         click.echo("Type 'refine' with additional instructions to refine the draft.")
     except Exception as e:
         click.echo(f"⚠️ Error drafting reply: {e}")
@@ -97,7 +97,9 @@ def refine(instructions, full_history):
         refined_reply = session.refine(instructions, full_history=full_history)
         click.echo("Refined reply:\n")
         click.echo(refined_reply)
-        click.echo("\nType 'save' to save the refined draft to a file.")
+        click.echo(
+            "\nType 'save' to save the refined draft to a file (--cloud to save to S3)."
+        )
         click.echo("Type 'refine' with additional instructions to further refine.")
     except Exception as e:
         click.echo(f"⚠️ Error refining reply: {e}")

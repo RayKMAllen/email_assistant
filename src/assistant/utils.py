@@ -4,10 +4,6 @@ import datetime
 import os
 import pymupdf
 import boto3
-from dotenv import load_dotenv
-
-load_dotenv()
-BUCKET_NAME = os.getenv("BUCKET_NAME")
 
 
 def process_path_or_email(path_or_text: str) -> str:
@@ -94,7 +90,7 @@ def save_draft_to_file(draft: str, filepath=None) -> None:
         f.write(draft)
 
 
-def save_draft_to_s3(draft: str, filepath=None) -> None:
+def save_draft_to_s3(draft: str, bucket_name: str, filepath=None) -> None:
     """
     Saves the draft text to an AWS S3 bucket.
 
@@ -114,12 +110,12 @@ def save_draft_to_s3(draft: str, filepath=None) -> None:
     s3 = boto3.client("s3")
 
     try:
-        s3.put_object(Bucket=BUCKET_NAME, Key=filepath, Body=draft_bytes)
+        s3.put_object(Bucket=bucket_name, Key=filepath, Body=draft_bytes)
     except Exception as e:
         print(f"Failed to save draft to S3: {e}")
         raise
 
-    print(f"Draft saved to s3://{BUCKET_NAME}/{filepath}")
+    print(f"Draft saved to s3://{bucket_name}/{filepath}")
 
 
 # %%

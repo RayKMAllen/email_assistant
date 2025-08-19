@@ -33,7 +33,7 @@ optional tone and refinement.
     ``` sh
     git clone https://github.com/RayKMAllen/email_assistant.git
     ```
-2.  Specify your S3 bucket name in a `.env` file in the root directory:
+2.  Specify your S3 bucket name in the `prompts_parameters.py` file in the root directory:
 
     ```
     BUCKET_NAME=your-s3-bucket-name

@@ -18,6 +18,7 @@ from assistant.prompts_params import (
     MAX_TOKENS,
     TEMPERATURE,
     TOP_P,
+    BUCKET_NAME,
 )
 
 
@@ -174,7 +175,9 @@ class BedrockSession:
             return
 
         if cloud:
-            save_draft_to_s3(self.last_draft, filepath)
+            save_draft_to_s3(
+                self.last_draft, bucket_name=BUCKET_NAME, filepath=filepath
+            )
         else:
             save_draft_to_file(self.last_draft, filepath)
 
