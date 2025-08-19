@@ -123,7 +123,7 @@ Draft saved to default location.
 Run tests with:
 
 ``` sh
-pytest
+python -m pytest
 ```
 
 ## Project Structure

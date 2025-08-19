@@ -5,3 +5,4 @@ drafts
 __pycache__
 *.egg-info
 build
+*.txt
