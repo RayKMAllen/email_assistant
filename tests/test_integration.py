@@ -464,9 +464,8 @@ class TestConversationFlow:
         
         # Verify state
         assert agent.conversation_count == 1
-        # After reset, the agent should be in GREETING state, not EMAIL_LOADED
-        # The test expectation seems wrong - let's check what actually happens after reset
-        assert agent.state_manager.context.current_state.value == ConversationState.GREETING.value
+        # After processing first email, the agent should be in EMAIL_LOADED state
+        assert agent.state_manager.context.current_state.value == ConversationState.EMAIL_LOADED.value
         
         # Reset conversation
         agent.reset_conversation()

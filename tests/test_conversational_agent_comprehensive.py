@@ -427,12 +427,8 @@ class TestConversationalEmailAgent:
         result, success = agent._handle_continue_workflow()
         
         assert success is True
-        # The continue workflow should return the key_info, but the implementation returns 'continue_acknowledged'
-        # Let's check what the actual implementation does
-        assert result == 'continue_acknowledged'  # This is what the actual implementation returns
-        # The actual implementation may not call extract_key_info if key_info is already set
-        # Let's just verify the success and result
-        pass  # The implementation returns 'continue_acknowledged' for this case
+        # The continue workflow should return the key_info from EMAIL_LOADED state
+        assert result == {'sender': 'test@example.com'}
     
     def test_handle_continue_workflow_info_extracted(self, agent):
         """Test continue workflow from info extracted state"""
@@ -444,11 +440,8 @@ class TestConversationalEmailAgent:
         result, success = agent._handle_continue_workflow()
         
         assert success is True
-        # The continue workflow should return draft info, but implementation returns 'continue_acknowledged'
-        assert result == 'continue_acknowledged'  # This is what the actual implementation returns
-        # The actual implementation may not call draft_reply in this case
-        # Let's just verify the success and result
-        pass  # The implementation returns 'continue_acknowledged' for this case
+        # The continue workflow should return draft info from INFO_EXTRACTED state
+        assert result == {'draft': 'Auto draft'}
     
     def test_handle_continue_workflow_draft_created(self, agent):
         """Test continue workflow from draft created state"""
@@ -457,8 +450,8 @@ class TestConversationalEmailAgent:
         result, success = agent._handle_continue_workflow()
         
         assert success is True
-        # The continue workflow should return ready_to_save, but implementation returns 'continue_acknowledged'
-        assert result == 'continue_acknowledged'  # This is what the actual implementation returns
+        # The continue workflow should return ready_to_save from DRAFT_CREATED state
+        assert result == 'ready_to_save'
     
     def test_handle_continue_workflow_other_state(self, agent):
         """Test continue workflow from other states"""

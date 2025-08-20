@@ -6,10 +6,10 @@ state management, email processing, and response generation.
 from typing import Dict, Any, Tuple
 import traceback
 
-from assistant.llm_session import EmailLLMProcessor
-from assistant.conversation_state import ConversationStateManager, ConversationState
-from assistant.intent_classifier import HybridIntentClassifier, IntentResult
-from assistant.response_generator import ConversationalResponseGenerator
+from src.assistant.llm_session import EmailLLMProcessor
+from src.assistant.conversation_state import ConversationStateManager, ConversationState
+from src.assistant.intent_classifier import HybridIntentClassifier, IntentResult
+from src.assistant.response_generator import ConversationalResponseGenerator
 
 
 class ConversationalEmailAgent:

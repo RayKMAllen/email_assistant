@@ -6,7 +6,7 @@ Generates contextual responses with proactive guidance based on conversation sta
 from typing import Dict, Any
 import random
 
-from assistant.conversation_state import ConversationState, ConversationStateManager
+from src.assistant.conversation_state import ConversationState, ConversationStateManager
 
 
 class ConversationalResponseGenerator:
@@ -112,6 +112,11 @@ class ConversationalResponseGenerator:
             ConversationState.GREETING: [
                 "I can help you process emails, extract key information, and draft professional replies. You can paste an email directly, provide a file path, or ask me what I can do!",
                 "What can I help you with today? I can process emails, extract information, and help you draft replies. Just share an email or ask me about my capabilities!",
+            ],
+            ConversationState.WAITING_FOR_EMAIL: [
+                "I'm ready to help you with your email! Please share the email content, provide a file path, or paste the email text directly.",
+                "Please share the email you'd like me to process. You can paste the content, provide a file path, or upload a document.",
+                "I'm waiting for your email. You can share it by pasting the content or providing a file path to the email document.",
             ],
             ConversationState.EMAIL_LOADED: [
                 "Would you like me to extract the key information and draft a reply for you?",

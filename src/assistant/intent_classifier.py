@@ -42,10 +42,24 @@ class HybridIntentClassifier:
                     r'process this email',
                     r'i have an email',
                     r'can you help with this email',
-                    r'\.pdf$|\.txt$',  # file extensions
+                    r'process.*email',    # General process email patterns
+                    r'load.*email',       # Load email patterns
+                    r'analyze.*email',    # Analyze email patterns
                     r'from:.*to:.*subject:',  # email format indicators
                     r'subject:.*from:',  # alternative email format
+                    r'from:.*\n.*to:.*\n.*subject:',  # Multi-line email headers
+                    r'from:.*\n.*subject:.*\n.*to:',  # Alternative order
+                    r'to:.*\n.*from:.*\n.*subject:',  # Another order
                     r'dear.*sincerely|regards|best',  # email content patterns
+                    r'^from:\s*\S+@\S+',  # Email starting with From: header
+                    r'^to:\s*\S+@\S+',    # Email starting with To: header
+                    r'^subject:',         # Email starting with Subject: header
+                    r'process.*file',     # File processing requests
+                    r'load.*file',        # Load file requests
+                    r'analyze.*file',     # Analyze file requests
+                    r'help with.*file',   # Help with file requests
+                    r'here.s.*file',      # Here's a file
+                    r'(?:process|load|analyze|open|read).*\.(pdf|txt|doc|docx|eml)',  # Load specific file types with action verbs
                 ],
                 'confidence': 0.9
             },
@@ -58,12 +72,18 @@ class HybridIntentClassifier:
                     r'create.*reply',
                     r'compose.*response',
                     r'draft.*email',
+                    r'try.*draft',
+                    r'draft.*again',
+                    r'try.*drafting',
+                    r'draft.*retry',
+                    r'retry.*draft',
                 ],
                 'confidence': 0.85
             },
             'REFINE_DRAFT': {
                 'patterns': [
-                    r'make it more (formal|casual|professional|friendly|polite)',
+                    r'make it more (formal|casual|professional|friendly|polite|concise)',
+                    r'make it (formal|casual|professional|friendly|polite|concise)',  # Without "more"
                     r'change.*tone',
                     r'revise.*draft',
                     r'improve.*reply',
@@ -71,6 +91,7 @@ class HybridIntentClassifier:
                     r'add.*meeting',
                     r'include.*availability',
                     r'more (professional|formal)',
+                    r'be more (polite|formal|casual|professional)',
                 ],
                 'confidence': 0.8
             },
@@ -84,10 +105,23 @@ class HybridIntentClassifier:
                     r'save this',
                     r'save.*cloud',
                     r'save.*s3',
+                    r'save.*aws',
+                    r'save.*locally',
+                    r'save to cloud',
+                    r'save to s3',
+                    r'save to aws',
+                    r'save locally',
+                    r'save in.*cloud',
                     r'cloud.*storage',
                     r'upload.*draft',
+                    r'upload.*cloud',
+                    r'save\s+to\s+.*\.(txt|doc|docx|pdf|eml)',  # Save to file with extension
+                    r'save\s+as\s+.*\.(txt|doc|docx|pdf|eml)',  # Save as file with extension
+                    r'filepath?\s*:\s*.*\.(txt|doc|docx|pdf|eml)',  # filepath: /path/file.ext
+                    r'path\s*:\s*.*\.(txt|doc|docx|pdf|eml)',  # path: /path/file.ext
+                    r'save.*(?:the\s+)?(?:draft|reply|response|email).*to.*\.(txt|doc|docx|pdf|eml)',  # Save with file extension - more specific
                 ],
-                'confidence': 0.9
+                'confidence': 0.95  # Increased confidence to beat LOAD_EMAIL
             },
             'EXTRACT_INFO': {
                 'patterns': [
@@ -207,9 +241,10 @@ class HybridIntentClassifier:
                     matched_patterns.append(pattern)
             
             # Apply context-based adjustments
-            confidence = self._apply_context_adjustments(
+            adjusted_confidence = self._apply_context_adjustments(
                 intent, confidence, user_input_lower, context
             )
+            confidence = max(confidence, adjusted_confidence)
             
             if confidence > best_confidence:
                 best_confidence = confidence
@@ -217,7 +252,7 @@ class HybridIntentClassifier:
                 best_parameters.update({
                     'matched_patterns': matched_patterns,
                     'tone': self._extract_tone(user_input_lower),
-                    'refinement_instructions': self._extract_refinement_instructions(user_input_lower),
+                    'refinement_instructions': self._extract_refinement_instructions(user_input),  # Use original case
                     'cloud': self._extract_cloud_preference(user_input_lower),
                     'filepath': self._extract_filepath(user_input_lower)
                 })
@@ -241,7 +276,7 @@ class HybridIntentClassifier:
         adjustments = self.context_adjustments[current_state]
         
         # Handle simple affirmative responses in context
-        if user_input in ['yes', 'ok', 'okay', 'continue', 'proceed']:
+        if user_input.strip().lower() in ['yes', 'ok', 'okay', 'continue', 'proceed']:
             if intent == 'CONTINUE_WORKFLOW':
                 return 0.9
         
@@ -262,6 +297,9 @@ class HybridIntentClassifier:
         email_indicators = [
             r'from:.*to:.*subject:',
             r'subject:.*from:',
+            r'from:.*\n.*to:.*\n.*subject:',  # Multi-line email headers
+            r'from:.*\n.*subject:.*\n.*to:',  # Alternative order
+            r'to:.*\n.*from:.*\n.*subject:',  # Another order
             r'dear.*sincerely|regards|best',
         ]
         
@@ -279,8 +317,9 @@ class HybridIntentClassifier:
             r'(?:process|load|open|read|analyze|help with|work with)\s+(?:this\s+)?(?:file|email|document):\s*([^\s]+)',
             r'(?:here.s|here is)\s+(?:a\s+)?(?:file|email|document):\s*([^\s]+)',
             r'(?:file|email|document)\s+(?:is|at|located at):\s*([^\s]+)',
-            r'(?:load|process|analyze)\s+([^\s]+\.(?:pdf|txt|doc|docx|eml))',
-            r'([^\s]+\.(?:pdf|txt|doc|docx|eml))(?:\s|$)',  # Just a file with extension
+            r'(?:load|process|analyze)\s+([^\s]+\.(?:docx|pdf|txt|eml|doc))',  # Longer extensions first
+            r'([^\s]+\.(?:docx|pdf|txt|eml|doc))(?:\s|$)',  # Just a file with extension, longer first
+            r'(?:help with|work with|process|load|analyze)\s+[\'"]([^\'\"]+)[\'"]',  # Quoted filenames
         ]
         
         for pattern in file_path_patterns:
@@ -311,7 +350,7 @@ class HybridIntentClassifier:
     def _extract_refinement_instructions(self, user_input: str) -> Optional[str]:
         """Extract specific refinement instructions"""
         refinement_patterns = [
-            r'make it (more|less) \w+',
+            r'make it (?:more|less) \w+',
             r'add \w+',
             r'include \w+',
             r'change \w+',
@@ -320,10 +359,10 @@ class HybridIntentClassifier:
         
         instructions = []
         for pattern in refinement_patterns:
-            matches = re.findall(pattern, user_input)
+            matches = re.findall(pattern, user_input, re.IGNORECASE)
             instructions.extend(matches)
         
-        return ' '.join(instructions) if instructions else None
+        return ' '.join(instructions) if instructions else user_input
     
     def _extract_cloud_preference(self, user_input: str) -> bool:
         """Extract whether user wants to save to cloud/S3"""
@@ -347,15 +386,16 @@ class HybridIntentClassifier:
         """Extract specific filepath if mentioned"""
         # Look for filepath patterns like "save to /path/file.txt" or "save as filename.txt"
         filepath_patterns = [
+            r'save\s+to\s+([^\s]+)',      # "save to /path/file.txt"
+            r'save\s+as\s+([^\s]+)',      # "save as filename.txt"
             r'save\s+(?:to|as)\s+([^\s]+\.txt)',
             r'save\s+(?:to|as)\s+([^\s]+\.pdf)',
-            r'save\s+(?:to|as)\s+([^\s]+)',
             r'filepath?\s*:\s*([^\s]+)',
             r'path\s*:\s*([^\s]+)'
         ]
         
         for pattern in filepath_patterns:
-            match = re.search(pattern, user_input)
+            match = re.search(pattern, user_input, re.IGNORECASE)
             if match:
                 filepath = match.group(1).strip()
                 # Remove quotes if present
@@ -375,13 +415,36 @@ class HybridIntentClassifier:
                 method='fallback'
             )
         
+        # Check if email_processor has send_prompt method (avoid Mock issues in tests)
+        if not hasattr(self.email_processor, 'send_prompt') or not callable(getattr(self.email_processor, 'send_prompt')):
+            return IntentResult(
+                intent='CLARIFICATION_NEEDED',
+                confidence=0.5,
+                parameters={},
+                reasoning='LLM classification method not available',
+                method='fallback'
+            )
+        
         # Create classification prompt
         prompt = self._create_classification_prompt(user_input, context)
         
         try:
             response = self.email_processor.send_prompt(prompt)
+            
+            # Check if response is a string (avoid Mock object issues in tests)
+            if not isinstance(response, str):
+                return IntentResult(
+                    intent='CLARIFICATION_NEEDED',
+                    confidence=0.5,
+                    parameters={},
+                    reasoning='LLM classification returned invalid response type',
+                    method='fallback'
+                )
+            
             result = self._parse_llm_response(response)
-            result.method = 'llm_based'
+            # Only override method if it's not already an error_fallback
+            if result.method != 'error_fallback':
+                result.method = 'llm_based'
             return result
         except Exception as e:
             print(f"LLM classification failed: {e}")

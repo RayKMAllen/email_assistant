@@ -189,30 +189,47 @@ def extract_email_content_from_response(llm_response: str) -> str:
             # and the next non-empty line might be the email start
             if ':' in line_stripped and i < len(lines) - 1:
                 # Look at the next few lines to see if they start an email
+                found_email_pattern = False
                 for j in range(i + 1, min(i + 4, len(lines))):
                     next_line = lines[j].strip()
                     if next_line:
                         for pattern in email_start_patterns:
                             if next_line.startswith(pattern):
                                 return '\n'.join(lines[j:]).strip()
+                        # If we found a non-empty line but no email pattern, break
+                        found_email_pattern = False
+                        break
+                # If we found a colon but no email pattern follows, continue to other methods
+                if not found_email_pattern:
+                    continue
     
     # If no clear email start pattern is found, look for the last paragraph
-    # that doesn't contain explanatory words
-    explanatory_words = ['draft', 'response', 'reply', 'based on', 'here\'s', 'refined', 'professional']
+    # that doesn't contain explanatory words AND looks like email content
+    explanatory_words = ['draft', 'response', 'reply', 'based on', 'here\'s', 'here is', 'refined', 'professional', 'think about', 'situation']
     
     # Split into paragraphs (double newlines)
     paragraphs = llm_response.strip().split('\n\n')
     
-    # Find the first paragraph that doesn't seem explanatory
-    for paragraph in paragraphs:
-        paragraph_lower = paragraph.lower()
-        is_explanatory = any(word in paragraph_lower for word in explanatory_words)
+    # If we have multiple paragraphs and the first one contains explanatory language,
+    # check if any subsequent paragraphs look like email content
+    if len(paragraphs) > 1:
+        first_paragraph_lower = paragraphs[0].lower()
+        first_is_explanatory = any(word in first_paragraph_lower for word in explanatory_words)
         
-        if not is_explanatory and len(paragraph.strip()) > 10:
-            # Return this paragraph and everything after it
-            start_index = llm_response.find(paragraph)
-            if start_index != -1:
-                return llm_response[start_index:].strip()
+        if first_is_explanatory:
+            # Find the first paragraph that doesn't seem explanatory AND has email-like characteristics
+            for i, paragraph in enumerate(paragraphs[1:], 1):  # Start from second paragraph
+                paragraph_lower = paragraph.lower()
+                is_explanatory = any(word in paragraph_lower for word in explanatory_words)
+                
+                # Check if paragraph has email-like characteristics
+                has_email_characteristics = any(pattern.lower() in paragraph_lower for pattern in email_start_patterns)
+                
+                if not is_explanatory and len(paragraph.strip()) > 10 and has_email_characteristics:
+                    # Return this paragraph and everything after it
+                    start_index = llm_response.find(paragraph)
+                    if start_index != -1:
+                        return llm_response[start_index:].strip()
     
     # Fallback: return the original response if we can't identify the email content
     return llm_response.strip()
