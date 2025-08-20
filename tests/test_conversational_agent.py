@@ -41,6 +41,8 @@ def test_basic_functionality():
             "Draft a reply",
             "Make it more formal",
             "Save this draft",
+            "save",  # Test simple save command
+            "summary",  # Test simple summary command
             "Help me"
         ]
         
@@ -122,13 +124,57 @@ def test_response_generation():
         traceback.print_exc()
         return False
 
+def test_enhanced_clarification():
+    """Test enhanced clarification responses with context"""
+    print("\n🤔 Testing Enhanced Clarification...")
+    
+    try:
+        from assistant.conversational_agent import ConversationalEmailAgent
+        
+        agent = ConversationalEmailAgent()
+        
+        # Test clarification in different states
+        test_cases = [
+            ("GREETING", "unclear request"),
+            ("INFO_EXTRACTED", "something vague"),
+            ("DRAFT_CREATED", "make changes")
+        ]
+        
+        for state_name, unclear_input in test_cases:
+            # Set the state
+            from assistant.conversation_state import ConversationState
+            if hasattr(ConversationState, state_name):
+                agent.state_manager.context.current_state = getattr(ConversationState, state_name)
+                
+                # Test clarification response
+                context_info = agent.state_manager.get_context_summary()
+                context_info['fallback_attempted'] = True  # Simulate fallback scenario
+                
+                response = agent.response_generator.generate_clarification_response(
+                    unclear_input, context_info
+                )
+                
+                print(f"  State {state_name}: {response[:80]}...")
+                
+                # Should contain helpful suggestions
+                assert "for example" in response.lower() or "you could" in response.lower()
+        
+        print("✅ Enhanced clarification test completed")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Enhanced clarification error: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
 if __name__ == "__main__":
     print("=" * 60)
     print("🤖 Conversational Email Assistant - Test Suite")
     print("=" * 60)
     
     tests_passed = 0
-    total_tests = 3
+    total_tests = 4
     
     if test_basic_functionality():
         tests_passed += 1
@@ -137,6 +183,9 @@ if __name__ == "__main__":
         tests_passed += 1
     
     if test_response_generation():
+        tests_passed += 1
+    
+    if test_enhanced_clarification():
         tests_passed += 1
     
     print("\n" + "=" * 60)

@@ -215,10 +215,20 @@ class HybridIntentClassifier:
         if rule_result.confidence > 0.3:
             return rule_result
         else:
+            # If we have an LLM processor available, try LLM classification as final fallback
+            if self.email_processor:
+                llm_fallback = self._classify_with_llm(user_input, context)
+                if llm_fallback.confidence > 0.4:  # Lower threshold for fallback
+                    llm_fallback.reasoning = f"Fallback LLM classification: {llm_fallback.reasoning}"
+                    return llm_fallback
+            
             return IntentResult(
                 intent='CLARIFICATION_NEEDED',
                 confidence=0.9,
-                parameters={'original_input': user_input},
+                parameters={
+                    'original_input': user_input,
+                    'fallback_attempted': self.email_processor is not None
+                },
                 reasoning='Input is ambiguous and needs clarification',
                 method='fallback'
             )

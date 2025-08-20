@@ -137,13 +137,35 @@ class TestHybridIntentClassifier:
             "Save this",
             "Save to cloud",
             "Save to S3",
-            "Upload the draft"
+            "Upload the draft",
+            "save"  # Added simple "save" command
         ]
         
         for test_input in test_cases:
             result = classifier.classify(test_input, context)
             assert result.intent == 'SAVE_DRAFT', f"Failed for input: {test_input}"
             assert result.confidence >= 0.8
+            assert result.method == 'rule_based'
+    
+    def test_extract_info_intent_detection(self, classifier, context):
+        """Test detecting EXTRACT_INFO intent"""
+        test_cases = [
+            "What are the key details",
+            "Show me the summary",
+            "Extract the information",
+            "Who sent this email",
+            "What's this about",
+            "Key information",
+            "summary",  # Added simple "summary" command
+            "Show me the info",
+            "Key details",
+            "What's the summary"
+        ]
+        
+        for test_input in test_cases:
+            result = classifier.classify(test_input, context)
+            assert result.intent == 'EXTRACT_INFO', f"Failed for input: {test_input}"
+            assert result.confidence >= 0.7
             assert result.method == 'rule_based'
     
     def test_general_help_intent_detection(self, classifier, context):
@@ -222,12 +244,28 @@ class TestHybridIntentClassifier:
             ("Save to /path/file.txt", "/path/file.txt"),
             ("Save as draft.txt", "draft.txt"),
             ("filepath: /home/user/draft.pdf", "/home/user/draft.pdf"),
-            ("path: ./drafts/reply.txt", "./drafts/reply.txt")
+            ("path: ./drafts/reply.txt", "./drafts/reply.txt"),
+            ("Save to /home/user/documents/email.txt", "/home/user/documents/email.txt")
         ]
         
         for test_input, expected_path in test_cases:
             result = classifier.classify(test_input, context)
             assert result.parameters.get('filepath') == expected_path, f"Failed for: {test_input}"
+    
+    def test_filepath_extraction_excludes_cloud_terms(self, classifier, context):
+        """Test that cloud terms are not treated as filepaths"""
+        cloud_inputs = [
+            "Save to cloud",
+            "Save to s3",
+            "Save to aws"
+        ]
+        
+        for test_input in cloud_inputs:
+            result = classifier.classify(test_input, context)
+            # Should detect as SAVE_DRAFT but not extract filepath
+            assert result.intent == 'SAVE_DRAFT', f"Failed intent for: {test_input}"
+            assert result.parameters.get('filepath') is None, f"Incorrectly extracted filepath for: {test_input}"
+            assert result.parameters.get('cloud') is True, f"Failed to detect cloud preference for: {test_input}"
     
     def test_email_content_extraction(self, classifier, context):
         """Test extracting email content from user input"""
@@ -341,6 +379,36 @@ John"""
         assert result.intent == 'CLARIFICATION_NEEDED'
         assert result.method == 'error_fallback'
         assert 'error' in result.parameters
+    
+    def test_llm_fallback_when_rule_based_fails(self, mock_email_processor, context):
+        """Test LLM fallback when rule-based classification fails completely"""
+        classifier = HybridIntentClassifier(email_processor=mock_email_processor)
+        
+        # Mock LLM response for fallback
+        llm_response = {
+            "intent": "EXTRACT_INFO",
+            "confidence": 0.6,
+            "parameters": {},
+            "reasoning": "Fallback classification attempt"
+        }
+        mock_email_processor.send_prompt.return_value = json.dumps(llm_response)
+        
+        # Use very ambiguous input that won't match any rules
+        result = classifier.classify("xyz random unclear text", context)
+        
+        assert result.intent == 'EXTRACT_INFO'
+        assert result.confidence == 0.6
+        assert result.method == 'llm_based'
+        # The reasoning should contain the original LLM response, not necessarily the fallback prefix
+        assert result.reasoning == "Fallback classification attempt"
+    
+    def test_clarification_needed_includes_fallback_info(self, classifier, context):
+        """Test that clarification needed includes fallback attempt information"""
+        result = classifier.classify("completely unclear gibberish", context)
+        
+        assert result.intent == 'CLARIFICATION_NEEDED'
+        assert 'fallback_attempted' in result.parameters
+        assert result.parameters['fallback_attempted'] == False  # No LLM processor available
     
     # Test clarification needed cases
     

@@ -162,13 +162,13 @@ class TestConversationStateManager:
         
         # From GREETING state
         valid_intents = manager.get_valid_intents()
-        expected_intents = ['LOAD_EMAIL', 'GENERAL_HELP', 'CLARIFICATION_NEEDED']
+        expected_intents = ['LOAD_EMAIL', 'EXTRACT_INFO', 'GENERAL_HELP', 'CLARIFICATION_NEEDED']
         assert set(valid_intents) == set(expected_intents)
         
         # From DRAFT_CREATED state
         manager.context.current_state = ConversationState.DRAFT_CREATED
         valid_intents = manager.get_valid_intents()
-        expected_intents = ['REFINE_DRAFT', 'SAVE_DRAFT', 'CONTINUE_WORKFLOW', 'DRAFT_REPLY', 'LOAD_EMAIL']
+        expected_intents = ['REFINE_DRAFT', 'SAVE_DRAFT', 'CONTINUE_WORKFLOW', 'DRAFT_REPLY', 'EXTRACT_INFO', 'LOAD_EMAIL']
         assert set(valid_intents) == set(expected_intents)
     
     def test_update_context(self):
@@ -260,6 +260,27 @@ class TestConversationStateManager:
         # Can load new email from error state
         manager.transition_state('LOAD_EMAIL', success=True)
         assert manager.context.current_state == ConversationState.EMAIL_LOADED
+        
+        # Reset to error recovery
+        manager.context.current_state = ConversationState.ERROR_RECOVERY
+        
+        # Can save draft from error state
+        manager.transition_state('SAVE_DRAFT', success=True)
+        assert manager.context.current_state == ConversationState.CONVERSATION_COMPLETE
+        
+        # Reset to error recovery
+        manager.context.current_state = ConversationState.ERROR_RECOVERY
+        
+        # Can extract info from error state
+        manager.transition_state('EXTRACT_INFO', success=True)
+        assert manager.context.current_state == ConversationState.INFO_EXTRACTED
+        
+        # Reset to error recovery
+        manager.context.current_state = ConversationState.ERROR_RECOVERY
+        
+        # Can refine draft from error state
+        manager.transition_state('REFINE_DRAFT', success=True)
+        assert manager.context.current_state == ConversationState.DRAFT_REFINED
         
         # Reset to error recovery
         manager.context.current_state = ConversationState.ERROR_RECOVERY

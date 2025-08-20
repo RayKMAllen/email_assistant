@@ -345,11 +345,21 @@ class ConversationalResponseGenerator:
     
     def generate_clarification_response(self, user_input: str, context: Dict[str, Any]) -> str:
         """Generate response when user intent needs clarification"""
-        clarification_templates = [
-            "I'd be happy to help! Could you clarify what you'd like me to do?",
-            "I want to make sure I understand correctly. What would you like me to help you with?",
-            "I'm not quite sure what you need. Could you be more specific?",
-        ]
+        # Check if this was a fallback from failed intent classification
+        fallback_attempted = context.get('fallback_attempted', False)
+        
+        if fallback_attempted:
+            clarification_templates = [
+                "I tried to understand your request but I'm not quite sure what you'd like me to do. Let me help you with some options:",
+                "I had trouble interpreting that request. Here are some things I can help you with:",
+                "I'm not certain what you're asking for. Let me show you what I can do:",
+            ]
+        else:
+            clarification_templates = [
+                "I'd be happy to help! Could you clarify what you'd like me to do?",
+                "I want to make sure I understand correctly. What would you like me to help you with?",
+                "I'm not quite sure what you need. Could you be more specific?",
+            ]
         
         base_response = random.choice(clarification_templates)
         
@@ -363,17 +373,23 @@ class ConversationalResponseGenerator:
                 "- Ask me what I can do",
                 "- Provide a file path to an email document"
             ]
-        elif current_state == ConversationState.EMAIL_LOADED:
+        elif current_state == ConversationState.EMAIL_LOADED or current_state == ConversationState.INFO_EXTRACTED:
             suggestions = [
-                "- Ask me to extract key information",
+                "- Ask me to extract key information or show summary",
                 "- Request a draft reply",
-                "- Ask for a summary"
+                "- Ask for specific details about the email"
             ]
-        elif current_state == ConversationState.DRAFT_CREATED:
+        elif current_state == ConversationState.DRAFT_CREATED or current_state == ConversationState.DRAFT_REFINED:
             suggestions = [
-                "- Ask me to refine the draft",
+                "- Ask me to refine the draft (make it more formal, casual, etc.)",
                 "- Request to save the draft",
-                "- Ask for specific changes"
+                "- Ask for specific changes to the content"
+            ]
+        elif current_state == ConversationState.READY_TO_SAVE:
+            suggestions = [
+                "- Save the draft locally or to cloud",
+                "- Make more refinements to the draft",
+                "- Start working on a new email"
             ]
         
         if suggestions:

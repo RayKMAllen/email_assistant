@@ -54,9 +54,13 @@ class ConversationalEmailAgent:
             
             # Handle clarification needed case
             if intent_result.intent == 'CLARIFICATION_NEEDED':
+                # Pass the intent result parameters to provide context about the failure
+                context_info = self.state_manager.get_context_summary()
+                context_info.update(intent_result.parameters)  # Include fallback info
+                
                 response = self.response_generator.generate_clarification_response(
-                    user_input, 
-                    self.state_manager.get_context_summary()
+                    user_input,
+                    context_info
                 )
                 self.state_manager.context.add_to_history("assistant", response)
                 return response
