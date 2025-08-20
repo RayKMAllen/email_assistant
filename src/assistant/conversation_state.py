@@ -81,11 +81,13 @@ class ConversationStateManager:
                 'EXTRACT_INFO': ConversationState.INFO_EXTRACTED,
                 'DRAFT_REPLY': ConversationState.DRAFT_CREATED,
                 'CONTINUE_WORKFLOW': ConversationState.INFO_EXTRACTED,
+                'DECLINE_OFFER': ConversationState.EMAIL_LOADED,  # Stay in same state
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,  # New email
             },
             ConversationState.INFO_EXTRACTED: {
                 'DRAFT_REPLY': ConversationState.DRAFT_CREATED,
                 'CONTINUE_WORKFLOW': ConversationState.DRAFT_CREATED,
+                'DECLINE_OFFER': ConversationState.INFO_EXTRACTED,  # Stay in same state
                 'EXTRACT_INFO': ConversationState.INFO_EXTRACTED,  # Allow re-showing info
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,  # New email
             },
@@ -93,6 +95,7 @@ class ConversationStateManager:
                 'REFINE_DRAFT': ConversationState.DRAFT_REFINED,
                 'SAVE_DRAFT': ConversationState.READY_TO_SAVE,
                 'CONTINUE_WORKFLOW': ConversationState.READY_TO_SAVE,
+                'DECLINE_OFFER': ConversationState.DRAFT_CREATED,  # Stay in same state
                 'DRAFT_REPLY': ConversationState.DRAFT_CREATED,  # New draft
                 'EXTRACT_INFO': ConversationState.DRAFT_CREATED,  # Allow showing info without changing state
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,  # New email
@@ -101,6 +104,7 @@ class ConversationStateManager:
                 'REFINE_DRAFT': ConversationState.DRAFT_REFINED,  # Multiple refinements
                 'SAVE_DRAFT': ConversationState.READY_TO_SAVE,
                 'CONTINUE_WORKFLOW': ConversationState.READY_TO_SAVE,
+                'DECLINE_OFFER': ConversationState.DRAFT_REFINED,  # Stay in same state
                 'DRAFT_REPLY': ConversationState.DRAFT_CREATED,  # Start over
                 'EXTRACT_INFO': ConversationState.DRAFT_REFINED,  # Allow showing info without changing state
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,  # New email

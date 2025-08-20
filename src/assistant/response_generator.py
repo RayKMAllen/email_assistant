@@ -78,6 +78,13 @@ class ConversationalResponseGenerator:
                     "I can help you with several email-related tasks:",
                     "Here are my capabilities:",
                 ]
+            },
+            'DECLINE_OFFER': {
+                'success': [
+                    "No problem! What would you like me to help you with instead?",
+                    "That's fine! Let me know what else I can do for you.",
+                    "Understood! What would you prefer to do next?",
+                ]
             }
         }
     
@@ -205,6 +212,8 @@ class ConversationalResponseGenerator:
             return self._format_save_response(template, operation_result)
         elif intent == 'GENERAL_HELP':
             return self._format_help_response(template)
+        elif intent == 'DECLINE_OFFER':
+            return self._format_decline_response(template, operation_result)
         else:
             return template
     
@@ -321,6 +330,17 @@ class ConversationalResponseGenerator:
         ]
         
         return f"{template}\n\n" + "\n".join(capabilities)
+    
+    def _format_decline_response(self, template: str, result: str) -> str:
+        """Format response for declined offers"""
+        if result == "offer_declined_draft":
+            return "No problem! You can ask me to draft a reply later, or I can help you with something else. What would you like to do?"
+        elif result == "offer_declined_save":
+            return "That's fine! You can save the draft later, make more changes, or I can help you with something else. What would you prefer?"
+        elif result == "offer_declined_general":
+            return template
+        else:
+            return template
     
     def _generate_proactive_guidance(self) -> str:
         """Generate proactive guidance based on current conversation state"""

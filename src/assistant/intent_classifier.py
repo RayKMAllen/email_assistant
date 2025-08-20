@@ -152,15 +152,37 @@ class HybridIntentClassifier:
             },
             'CONTINUE_WORKFLOW': {
                 'patterns': [
-                    r'^yes$',
-                    r'^ok$',
-                    r'^okay$',
-                    r'^continue$',
-                    r'^proceed$',
-                    r'^next$',
-                    r'^go ahead$',
+                    r'^yes[!.]*$',
+                    r'^ok[!.]*$',
+                    r'^okay[!.]*$',
+                    r'^continue[!.]*$',
+                    r'^proceed[!.]*$',
+                    r'^next[!.]*$',
+                    r'^go ahead[!.]*$',
                     r'sounds good',
                     r'that works',
+                    r'please do',
+                    r'go for it',
+                    r'^sure[!.]*$',
+                    r'^do it[!.]*$',
+                ],
+                'confidence': 0.7  # Lower confidence as context-dependent
+            },
+            'DECLINE_OFFER': {
+                'patterns': [
+                    r'^no[!.]*$',
+                    r'^nope[!.]*$',
+                    r'^not now[!.]*$',
+                    r'^not yet[!.]*$',
+                    r'^skip[!.]*$',
+                    r'^skip that[!.]*$',
+                    r'^skip it[!.]*$',
+                    r'^no thanks[!.]*$',
+                    r'^no thank you[!.]*$',
+                    r'not right now',
+                    r'maybe later',
+                    r'not interested',
+                    r'^pass[!.]*$',
                 ],
                 'confidence': 0.7  # Lower confidence as context-dependent
             }
@@ -171,18 +193,22 @@ class HybridIntentClassifier:
         self.context_adjustments = {
             ConversationState.EMAIL_LOADED: {
                 'yes_patterns': ['CONTINUE_WORKFLOW', 'EXTRACT_INFO'],
+                'no_patterns': ['DECLINE_OFFER'],
                 'default_boost': {'DRAFT_REPLY': 0.1, 'EXTRACT_INFO': 0.1}
             },
             ConversationState.INFO_EXTRACTED: {
                 'yes_patterns': ['CONTINUE_WORKFLOW', 'DRAFT_REPLY'],
+                'no_patterns': ['DECLINE_OFFER'],
                 'default_boost': {'DRAFT_REPLY': 0.15}
             },
             ConversationState.DRAFT_CREATED: {
                 'yes_patterns': ['CONTINUE_WORKFLOW', 'SAVE_DRAFT'],
+                'no_patterns': ['DECLINE_OFFER'],
                 'default_boost': {'SAVE_DRAFT': 0.1, 'REFINE_DRAFT': 0.1}
             },
             ConversationState.DRAFT_REFINED: {
                 'yes_patterns': ['CONTINUE_WORKFLOW', 'SAVE_DRAFT'],
+                'no_patterns': ['DECLINE_OFFER'],
                 'default_boost': {'SAVE_DRAFT': 0.15}
             }
         }
@@ -280,7 +306,7 @@ class HybridIntentClassifier:
             method='rule_based'
         )
     
-    def _apply_context_adjustments(self, intent: str, confidence: float, 
+    def _apply_context_adjustments(self, intent: str, confidence: float,
                                  user_input: str, context: ConversationContext) -> float:
         """Apply context-based confidence adjustments"""
         current_state = context.current_state
@@ -289,11 +315,17 @@ class HybridIntentClassifier:
             return confidence
         
         adjustments = self.context_adjustments[current_state]
+        user_input_clean = user_input.strip().lower()
         
         # Handle simple affirmative responses in context
-        if user_input.strip().lower() in ['yes', 'ok', 'okay', 'continue', 'proceed']:
+        if user_input_clean in ['yes', 'ok', 'okay', 'continue', 'proceed', 'sure', 'please do', 'go for it', 'do it']:
             if intent == 'CONTINUE_WORKFLOW':
-                return 0.9
+                return 0.95  # High confidence for yes responses to offers
+        
+        # Handle simple negative responses in context
+        if user_input_clean in ['no', 'nope', 'not now', 'not yet', 'skip', 'skip that', 'skip it', 'no thanks', 'no thank you', 'pass']:
+            if intent == 'DECLINE_OFFER':
+                return 0.95  # High confidence for no responses to offers
         
         # Apply default boosts for likely intents in current state
         if 'default_boost' in adjustments and intent in adjustments['default_boost']:
@@ -485,7 +517,7 @@ class HybridIntentClassifier:
         """Create prompt for LLM intent classification"""
         valid_intents = [
             'LOAD_EMAIL', 'DRAFT_REPLY', 'EXTRACT_INFO', 'REFINE_DRAFT',
-            'SAVE_DRAFT', 'GENERAL_HELP', 'CONTINUE_WORKFLOW', 'CLARIFICATION_NEEDED'
+            'SAVE_DRAFT', 'GENERAL_HELP', 'CONTINUE_WORKFLOW', 'DECLINE_OFFER', 'CLARIFICATION_NEEDED'
         ]
         
         prompt = f"""

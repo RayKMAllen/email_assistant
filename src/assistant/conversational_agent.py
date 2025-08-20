@@ -137,6 +137,9 @@ class ConversationalEmailAgent:
             elif intent == 'CONTINUE_WORKFLOW':
                 return self._handle_continue_workflow()
             
+            elif intent == 'DECLINE_OFFER':
+                return self._handle_decline_offer()
+            
             else:
                 return f"I'm not sure how to handle that request: {intent}", False
                 
@@ -300,6 +303,18 @@ class ConversationalEmailAgent:
                 
         except Exception as e:
             return f"Error continuing workflow: {str(e)}", False
+    
+    def _handle_decline_offer(self) -> Tuple[str, bool]:
+        """Handle when user declines an offer"""
+        current_state = self.state_manager.context.current_state
+        
+        # Return appropriate response based on current state
+        if current_state == ConversationState.INFO_EXTRACTED:
+            return "offer_declined_draft", True
+        elif current_state == ConversationState.DRAFT_CREATED or current_state == ConversationState.DRAFT_REFINED:
+            return "offer_declined_save", True
+        else:
+            return "offer_declined_general", True
     
     def _handle_unexpected_error(self, error: Exception, user_input: str) -> str:
         """Handle unexpected errors gracefully"""
