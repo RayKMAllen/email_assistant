@@ -4,7 +4,6 @@ Provides a natural language interface instead of command-based interaction.
 """
 
 import click
-import sys
 from typing import Optional
 
 from assistant.conversational_agent import ConversationalEmailAgent

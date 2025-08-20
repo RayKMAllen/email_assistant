@@ -15,7 +15,6 @@ def test_basic_functionality():
     
     try:
         from assistant.conversational_agent import ConversationalEmailAgent
-        from assistant.conversation_state import ConversationState
         from assistant.intent_classifier import HybridIntentClassifier
         
         print("✅ All imports successful")
@@ -68,7 +67,6 @@ def test_conversation_flow():
     
     try:
         from assistant.conversational_agent import ConversationalEmailAgent
-        from assistant.conversation_state import ConversationState
         
         agent = ConversationalEmailAgent()
         
@@ -101,7 +99,6 @@ def test_response_generation():
     
     try:
         from assistant.conversational_agent import ConversationalEmailAgent
-        from assistant.response_generator import ConversationalResponseGenerator
         
         agent = ConversationalEmailAgent()
         

@@ -74,22 +74,22 @@ Alex"""
     print("Testing email content extraction...")
     
     result_1 = extract_email_content_from_response(test_case_1)
-    print(f"\nTest 1 - Expected to extract clean email:")
+    print("\nTest 1 - Expected to extract clean email:")
     print(f"Result: {repr(result_1)}")
     print(f"Expected: {repr(expected_1)}")
-    print(f"✅ PASS" if result_1.strip() == expected_1.strip() else "❌ FAIL")
+    print("✅ PASS" if result_1.strip() == expected_1.strip() else "❌ FAIL")
     
     result_2 = extract_email_content_from_response(test_case_2)
-    print(f"\nTest 2 - Expected to extract clean email:")
+    print("\nTest 2 - Expected to extract clean email:")
     print(f"Result: {repr(result_2)}")
     print(f"Expected: {repr(expected_2)}")
-    print(f"✅ PASS" if result_2.strip() == expected_2.strip() else "❌ FAIL")
+    print("✅ PASS" if result_2.strip() == expected_2.strip() else "❌ FAIL")
     
     result_3 = extract_email_content_from_response(test_case_3)
-    print(f"\nTest 3 - Expected to return original (no explanatory text):")
+    print("\nTest 3 - Expected to return original (no explanatory text):")
     print(f"Result: {repr(result_3)}")
     print(f"Expected: {repr(expected_3)}")
-    print(f"✅ PASS" if result_3.strip() == expected_3.strip() else "❌ FAIL")
+    print("✅ PASS" if result_3.strip() == expected_3.strip() else "❌ FAIL")
     
     print("\n" + "="*50)
     print("Email extraction function test completed!")

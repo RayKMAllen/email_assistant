@@ -3,9 +3,8 @@ Natural language response generation system for the conversational email agent.
 Generates contextual responses with proactive guidance based on conversation state.
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any
 import random
-from datetime import datetime
 
 from assistant.conversation_state import ConversationState, ConversationStateManager
 

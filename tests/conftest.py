@@ -4,7 +4,6 @@ Pytest configuration and shared fixtures for the email assistant test suite.
 
 import pytest
 import tempfile
-import os
 from unittest.mock import Mock, patch, MagicMock
 import json
 

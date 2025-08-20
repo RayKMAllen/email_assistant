@@ -1,6 +1,6 @@
 import pytest
 from click.testing import CliRunner
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from src.cli.cli import cli
 
 
@@ -10,138 +10,103 @@ def runner():
 
 
 @pytest.fixture
-def mock_session(monkeypatch):
-    mock = MagicMock()
-    monkeypatch.setattr("src.cli.cli.session", mock)
-    return mock
+def mock_agent():
+    """Mock the conversational agent"""
+    with patch('src.cli.cli.get_agent') as mock_get_agent:
+        mock_agent = MagicMock()
+        mock_get_agent.return_value = mock_agent
+        yield mock_agent
 
 
-def test_load_success_text(runner, mock_session):
-    mock_session.load_text.return_value = None
-    mock_session.extract_key_info.return_value = None
-    result = runner.invoke(cli, ["load", "This is an email"])
-    assert "Email content loaded successfully." in result.output
-    assert "Type 'draft' to draft a reply" in result.output
+def test_ask_command_success(runner, mock_agent):
+    """Test the ask command with successful response"""
+    mock_agent.process_user_input.return_value = "I've processed your request successfully."
+    
+    result = runner.invoke(cli, ["ask", "Help me with this email"])
+    
     assert result.exit_code == 0
-    mock_session.load_text.assert_called_once()
-    mock_session.extract_key_info.assert_called_once()
+    assert "I've processed your request successfully." in result.output
+    mock_agent.process_user_input.assert_called_once_with("Help me with this email")
 
 
-def test_load_failure_load_text(runner, mock_session):
-    mock_session.load_text.side_effect = Exception("fail load")
-    result = runner.invoke(cli, ["load", "bad input"])
-    assert "⚠️ Error loading email: fail load" in result.output
+def test_ask_command_no_message(runner, mock_agent):
+    """Test the ask command without a message"""
+    result = runner.invoke(cli, ["ask"])
+    
     assert result.exit_code == 0
+    assert "Please provide a message" in result.output
 
 
-def test_load_failure_extract_key_info(runner, mock_session):
-    mock_session.load_text.return_value = None
-    mock_session.extract_key_info.side_effect = Exception("fail extract")
-    result = runner.invoke(cli, ["load", "good input"])
-    assert "Email content loaded successfully." in result.output
-    assert "⚠️ Error extracting key info: fail extract" in result.output
-
-
-def test_draft_success(runner, mock_session):
-    mock_session.text = "email"
-    mock_session.key_info = "info"
-    mock_session.draft_reply.return_value = "Drafted reply text"
-    result = runner.invoke(cli, ["draft", "formal"])
-    assert "Drafted reply:" in result.output
-    assert "Drafted reply text" in result.output
-    assert "Type 'save' to save the draft" in result.output
+def test_ask_command_exception(runner, mock_agent):
+    """Test the ask command with exception"""
+    mock_agent.process_user_input.side_effect = Exception("Processing error")
+    
+    result = runner.invoke(cli, ["ask", "test message"])
+    
     assert result.exit_code == 0
-    mock_session.draft_reply.assert_called_once_with(tone="formal")
+    assert "⚠️ Error: Processing error" in result.output
 
 
-def test_draft_no_email_loaded(runner, mock_session):
-    mock_session.text = None
-    mock_session.key_info = None
-    result = runner.invoke(cli, ["draft"])
-    assert "⚠️ Correct email conversation has not yet been loaded" in result.output
+def test_reset_command(runner, mock_agent):
+    """Test the reset command"""
+    mock_agent.get_greeting_message.return_value = "Hello! I'm your email assistant."
+    
+    result = runner.invoke(cli, ["reset"])
+    
     assert result.exit_code == 0
+    assert "✨ Conversation reset!" in result.output
+    assert "Hello! I'm your email assistant." in result.output
+    mock_agent.reset_conversation.assert_called_once()
 
 
-def test_draft_exception(runner, mock_session):
-    mock_session.text = "email"
-    mock_session.key_info = "info"
-    mock_session.draft_reply.side_effect = Exception("draft error")
-    result = runner.invoke(cli, ["draft"])
-    assert "⚠️ Error drafting reply: draft error" in result.output
-
-
-def test_save_success_with_filepath(runner, mock_session):
-    mock_session.last_draft = "reply"
-    result = runner.invoke(cli, ["save", "output.txt"])
-    assert "Draft saved successfully." in result.output
-    mock_session.save_draft.assert_called_once_with("output.txt", cloud=False)
-
-
-def test_save_success_default(runner, mock_session):
-    mock_session.last_draft = "reply"
-    result = runner.invoke(cli, ["save"])
-    assert "Draft saved to default location." in result.output
-    mock_session.save_draft.assert_called_once_with(None, cloud=False)
-
-
-def test_save_no_draft(runner, mock_session):
-    mock_session.last_draft = None
-    result = runner.invoke(cli, ["save"])
-    assert (
-        "⚠️ No draft available. Please use the 'draft' command first." in result.output
-    )
-
-
-def test_save_exception(runner, mock_session):
-    mock_session.last_draft = "reply"
-    mock_session.save_draft.side_effect = Exception("save error")
-    result = runner.invoke(cli, ["save"])
-    assert "⚠️ Error saving draft: save error" in result.output
-
-
-def test_refine_success(runner, mock_session):
-    mock_session.last_draft = "reply"
-    mock_session.refine.return_value = "Refined reply"
-    result = runner.invoke(cli, ["refine", "make", "it", "shorter"])
-    assert "Refined reply:" in result.output
-    assert "Refined reply" in result.output
-    assert "Type 'save' to save the refined draft" in result.output
-    mock_session.refine.assert_called_once_with("make it shorter", full_history=False)
-
-
-def test_refine_no_draft(runner, mock_session):
-    mock_session.last_draft = None
-    result = runner.invoke(cli, ["refine", "improve"])
-    assert (
-        "⚠️ No draft available. Please use the 'draft' command first." in result.output
-    )
-
-
-def test_refine_exception(runner, mock_session):
-    mock_session.last_draft = "reply"
-    mock_session.refine.side_effect = Exception("refine error")
-    result = runner.invoke(cli, ["refine", "improve"])
-    assert "⚠️ Error refining reply: refine error" in result.output
-
-
-def test_exit_command(runner):
-    result = runner.invoke(cli, ["exit"])
-    assert "👋 Goodbye!" in result.output
+def test_status_command(runner, mock_agent):
+    """Test the status command"""
+    mock_agent.get_conversation_summary.return_value = {
+        'conversation_state': 'greeting',
+        'conversation_count': 5,
+        'successful_operations': 3,
+        'failed_operations': 1,
+        'has_email_loaded': True,
+        'has_draft': False,
+        'draft_history_count': 0
+    }
+    
+    result = runner.invoke(cli, ["status"])
+    
     assert result.exit_code == 0
+    assert "📊 Conversation Status:" in result.output
+    assert "Current State: greeting" in result.output
+    assert "Messages Exchanged: 5" in result.output
+    assert "✅" in result.output  # Email loaded indicator
 
 
-def test_save_success_cloud_option(runner, mock_session):
-    mock_session.last_draft = "reply"
-    result = runner.invoke(cli, ["save", "--cloud"])
-    assert (
-        "Draft saved to default location." in result.output
-        or "Draft saved successfully." in result.output
-    )
-    mock_session.save_draft.assert_called_once_with(None, cloud=True)
+def test_help_commands(runner):
+    """Test the help-commands command"""
+    result = runner.invoke(cli, ["help-commands"])
+    
+    assert result.exit_code == 0
+    assert "🤖 Email Assistant Commands:" in result.output
+    assert "Natural Language Commands" in result.output
+    assert "CLI Commands:" in result.output
 
 
-def test_save_cloud_exception(runner, mock_session):
-    mock_session.last_draft = "reply"
-    mock_session.save_draft.side_effect = Exception("s3 error")
-    result = runner.invoke(cli, ["save", "--cloud"])
-    assert "⚠️ Error saving draft: s3 error" in result.output
+def test_chat_command(runner, mock_agent):
+    """Test the chat command (should start conversational shell)"""
+    # Mock input to exit immediately
+    with patch('builtins.input', side_effect=['exit']):
+        result = runner.invoke(cli, ["chat"])
+    
+    assert result.exit_code == 0
+    # Should show greeting and exit message
+    mock_agent.get_greeting_message.assert_called()
+
+
+def test_cli_without_subcommand(runner, mock_agent):
+    """Test CLI without subcommand (should start conversational shell)"""
+    # Mock input to exit immediately
+    with patch('builtins.input', side_effect=['exit']):
+        result = runner.invoke(cli, [])
+    
+    assert result.exit_code == 0
+    # Should show greeting
+    mock_agent.get_greeting_message.assert_called()

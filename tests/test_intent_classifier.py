@@ -3,7 +3,7 @@ Comprehensive unit tests for the hybrid intent classification system.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock
 import json
 
 from src.assistant.intent_classifier import (

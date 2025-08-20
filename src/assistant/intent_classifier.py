@@ -5,7 +5,7 @@ Uses rule-based patterns for clear cases and LLM classification for ambiguous in
 
 import re
 import json
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from dataclasses import dataclass
 
 from assistant.conversation_state import ConversationContext, ConversationState

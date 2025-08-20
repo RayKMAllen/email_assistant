@@ -3,7 +3,7 @@ Main conversational email agent that orchestrates intent classification,
 state management, email processing, and response generation.
 """
 
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Tuple
 import traceback
 
 from assistant.llm_session import EmailLLMProcessor

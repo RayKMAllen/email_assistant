@@ -4,8 +4,7 @@ Comprehensive unit tests for the EmailLLMProcessor (assistant core functionality
 
 import pytest
 import json
-from unittest.mock import patch, MagicMock, Mock
-from botocore.exceptions import ClientError, NoCredentialsError
+from unittest.mock import patch, MagicMock
 
 from src.assistant.llm_session import EmailLLMProcessor
 from src.assistant import utils

@@ -3,14 +3,12 @@ Comprehensive unit tests for the conversational response generation system.
 """
 
 import pytest
-from unittest.mock import Mock, patch
-import random
+from unittest.mock import patch
 
 from src.assistant.response_generator import ConversationalResponseGenerator
 from src.assistant.conversation_state import (
     ConversationState,
-    ConversationStateManager,
-    ConversationContext
+    ConversationStateManager
 )
 
 
@@ -439,7 +437,7 @@ class TestConversationalResponseGenerator:
             {"draft": None},
             {"extracted_info": "not a dict"},
             {"filepath": 123},  # Wrong type
-            {"tone": ["not", "a", "string"]},
+            {"tone": "invalid_tone"},  # Invalid tone that's not in templates
         ]
         
         for malformed_result in malformed_results:

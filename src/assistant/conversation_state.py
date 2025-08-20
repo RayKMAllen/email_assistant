@@ -6,7 +6,6 @@ Tracks conversation flow, context, and state transitions.
 from enum import Enum
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List
-import json
 from datetime import datetime
 
 
