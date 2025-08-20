@@ -35,7 +35,7 @@ MODEL_ID = config["DEFAULT"]["model_id"]
 BUCKET_NAME = config["DEFAULT"]["bucket_name"]
 
 
-class BedrockSession:
+class EmailLLMProcessor:
     """
     Manages a session with AWS Bedrock for email processing.
     Handles summarization, data extraction, and reply drafting.

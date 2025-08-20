@@ -1,158 +1,234 @@
+"""
+Conversational CLI for the email assistant.
+Provides a natural language interface instead of command-based interaction.
+"""
+
 import click
-import pprint
+import sys
+from typing import Optional
 
-from assistant.llm_session import BedrockSession
+from assistant.conversational_agent import ConversationalEmailAgent
 
-session = BedrockSession()
+
+# Global agent instance
+agent: Optional[ConversationalEmailAgent] = None
+
+
+def get_agent() -> ConversationalEmailAgent:
+    """Get or create the global agent instance"""
+    global agent
+    if agent is None:
+        agent = ConversationalEmailAgent()
+    return agent
 
 
 @click.group(invoke_without_command=True)
 @click.pass_context
 def cli(ctx):
-    """A simple interactive To-Do CLI."""
+    """Conversational Email Assistant - Your AI-powered email helper"""
     if ctx.invoked_subcommand is None:
-        run_shell()
+        run_conversational_shell()
 
 
 @cli.command()
-@click.argument("path_or_text", type=str, nargs=-1)
-def load(path_or_text):
-    """Load an email conversation from a file path or raw text."""
-
-    # combine arguments into a single string
-    path_or_text = " ".join(path_or_text)
-
-    try:
-        session.load_text(path_or_text)
-        click.echo("Email content loaded successfully.")
-    except Exception as e:
-        click.echo(f"⚠️ Error loading email: {e}")
-    try:
-        session.extract_key_info()
-        click.echo(
-            "\nType 'draft' to draft a reply, with an optional tone argument (e.g. 'draft formal')."
-        )
-    except Exception as e:
-        click.echo(f"⚠️ Error extracting key info: {e}")
+def chat():
+    """Start a conversational chat session with the email assistant"""
+    run_conversational_shell()
 
 
 @cli.command()
-@click.argument("tone", type=str, required=False)
-def draft(tone):
-    """Draft a reply to the loaded email conversation."""
-    if session.text is None or session.key_info is None:
-        click.echo(
-            "⚠️ Correct email conversation has not yet been loaded. Please use the 'load' command first."
-        )
+@click.argument("message", nargs=-1)
+def ask(message):
+    """Ask the assistant a question or give it a command"""
+    if not message:
+        click.echo("Please provide a message. Example: eassistant ask 'Help me with this email'")
         return
+    
+    message_text = " ".join(message)
+    agent = get_agent()
+    
     try:
-        reply = session.draft_reply(tone=tone)
-        click.echo("Drafted reply:\n")
-        click.echo(reply)
-        click.echo("\nType 'save' to save the draft to a file (--cloud to save to S3).")
-        click.echo("Type 'refine' with additional instructions to refine the draft.")
+        response = agent.process_user_input(message_text)
+        click.echo(response)
     except Exception as e:
-        click.echo(f"⚠️ Error drafting reply: {e}")
+        click.echo(f"⚠️ Error: {e}")
 
 
 @cli.command()
-@click.argument("filepath", type=click.Path(writable=True), required=False)
-@click.option(
-    "--cloud",
-    is_flag=True,
-    default=False,
-    help="Save the draft to AWS S3 instead of a local file.",
-)
-def save(filepath=None, cloud=False):
-    """Save the drafted reply to a file."""
-    if session.last_draft is None:
-        click.echo("⚠️ No draft available. Please use the 'draft' command first.")
-        return
-    try:
-        session.save_draft(filepath, cloud=cloud)
-        click.echo(
-            "Draft saved successfully."
-            if filepath
-            else "Draft saved to default location."
-        )
-    except Exception as e:
-        click.echo(f"⚠️ Error saving draft: {e}")
+def reset():
+    """Reset the conversation and start fresh"""
+    agent = get_agent()
+    agent.reset_conversation()
+    click.echo("✨ Conversation reset! Starting fresh.")
+    click.echo(agent.get_greeting_message())
 
 
 @cli.command()
-@click.argument("instructions", type=str, nargs=-1)
-@click.option(
-    "--full-history",
-    is_flag=True,
-    default=False,
-    help="Use the full user/assistant conversation history for refinement.",
-)
-def refine(instructions, full_history):
-    """Refine the drafted reply with additional instructions."""
-    if session.last_draft is None:
-        click.echo("⚠️ No draft available. Please use the 'draft' command first.")
-        return
-    instructions = " ".join(instructions)
-    try:
-        refined_reply = session.refine(instructions, full_history=full_history)
-        click.echo("Refined reply:\n")
-        click.echo(refined_reply)
-        click.echo(
-            "\nType 'save' to save the refined draft to a file (--cloud to save to S3)."
-        )
-        click.echo("Type 'refine' with additional instructions to further refine.")
-    except Exception as e:
-        click.echo(f"⚠️ Error refining reply: {e}")
+def status():
+    """Show current conversation status and statistics"""
+    agent = get_agent()
+    summary = agent.get_conversation_summary()
+    
+    click.echo("📊 Conversation Status:")
+    click.echo(f"   Current State: {summary['conversation_state']}")
+    click.echo(f"   Messages Exchanged: {summary['conversation_count']}")
+    click.echo(f"   Successful Operations: {summary['successful_operations']}")
+    click.echo(f"   Failed Operations: {summary['failed_operations']}")
+    click.echo(f"   Email Loaded: {'✅' if summary['has_email_loaded'] else '❌'}")
+    click.echo(f"   Draft Available: {'✅' if summary['has_draft'] else '❌'}")
+    click.echo(f"   Draft Versions: {summary['draft_history_count']}")
 
 
 @cli.command()
-def info():
-    """Show extracted key information from the loaded email conversation."""
-    if session.key_info is None:
-        click.echo(
-            "⚠️ No key information available. Please use the 'load' command first."
-        )
-        return
-    click.echo("Extracted Key Information:\n")
-    click.echo(pprint.pformat(session.key_info, indent=2))
+def help_commands():
+    """Show available commands (for users who prefer command-style interaction)"""
+    click.echo("🤖 Email Assistant Commands:")
+    click.echo("")
+    click.echo("💬 Natural Language Commands (recommended):")
+    click.echo("   Just type naturally! Examples:")
+    click.echo("   • 'Here's an email I need help with: [email content]'")
+    click.echo("   • 'Draft a formal reply to this email'")
+    click.echo("   • 'Make the draft more professional'")
+    click.echo("   • 'Save this draft to a file'")
+    click.echo("")
+    click.echo("⚙️ CLI Commands:")
+    click.echo("   eassistant                    - Start conversational mode")
+    click.echo("   eassistant ask 'message'      - Send a single message")
+    click.echo("   eassistant reset              - Reset conversation")
+    click.echo("   eassistant status             - Show conversation status")
+    click.echo("   eassistant help-commands      - Show this help")
+    click.echo("")
+    click.echo("💡 Tips:")
+    click.echo("   • The assistant understands natural language")
+    click.echo("   • It will guide you through the email workflow")
+    click.echo("   • You can paste emails directly or provide file paths")
+    click.echo("   • Type 'help' or 'exit' during conversation")
 
 
-@cli.command()
-def summary():
-    """Show the summary extracted from the loaded email conversation."""
-    if (
-        session.key_info is None
-        or session.key_info.get("summary") is None
-        or "summary" not in session.key_info
-    ):
-        click.echo("⚠️ No summary available. Please use the 'load' command first.")
-        return
-    click.echo("Summary:\n")
-    click.echo(pprint.pformat(session.key_info["summary"], indent=2))
-
-
-@cli.command()
-def exit():
-    """Exit the CLI."""
-    click.echo("👋 Goodbye!")
-    raise SystemExit
-
-
-def run_shell():
-    """Simple REPL loop for interactive mode."""
-    click.echo("Welcome! To start, please load the email path or content.")
+def run_conversational_shell():
+    """Run the main conversational interface"""
+    agent = get_agent()
+    
+    # Show greeting
+    click.echo("=" * 60)
+    click.echo("🤖 Conversational Email Assistant")
+    click.echo("=" * 60)
+    click.echo(agent.get_greeting_message())
+    click.echo("")
+    click.echo("💡 Tips:")
+    click.echo("   • Just type naturally - I understand conversational language")
+    click.echo("   • Type 'help' for assistance, 'status' for current state")
+    click.echo("   • Type 'exit', 'quit', or press Ctrl+C to leave")
+    click.echo("   • Type 'reset' to start a new conversation")
+    click.echo("")
+    
     while True:
         try:
-            cmd = input("> ").strip()
-            if not cmd:
+            # Get user input
+            user_input = input("You: ").strip()
+            
+            if not user_input:
                 continue
-            if cmd in ("help", "?"):
-                click.echo(
-                    "Available commands: load, draft, refine, save, info, summary, exit"
-                )
+            
+            # Handle special commands
+            if user_input.lower() in ['exit', 'quit', 'bye', 'goodbye']:
+                click.echo("👋 Goodbye! Thanks for using the Email Assistant!")
+                break
+            
+            elif user_input.lower() in ['help', '?']:
+                show_conversational_help()
                 continue
-            cli.main(args=cmd.split(), prog_name="eassistant", standalone_mode=False)
-        except SystemExit:
+            
+            elif user_input.lower() == 'status':
+                show_status_in_conversation(agent)
+                continue
+            
+            elif user_input.lower() == 'reset':
+                agent.reset_conversation()
+                click.echo("✨ Conversation reset!")
+                click.echo(agent.get_greeting_message())
+                continue
+            
+            elif user_input.lower() == 'clear':
+                # Clear screen (works on most terminals)
+                click.clear()
+                continue
+            
+            # Process user input through conversational agent
+            try:
+                response = agent.process_user_input(user_input)
+                click.echo(f"\n🤖 Assistant: {response}\n")
+                
+            except KeyboardInterrupt:
+                click.echo("\n👋 Goodbye!")
+                break
+            except Exception as e:
+                click.echo(f"\n⚠️ I encountered an error: {e}")
+                click.echo("Let's try that again. What would you like me to help you with?\n")
+        
+        except KeyboardInterrupt:
+            click.echo("\n👋 Goodbye!")
             break
-        except Exception as e:
-            click.echo(f"⚠️ Error: {e}")
+        except EOFError:
+            click.echo("\n👋 Goodbye!")
+            break
+
+
+def show_conversational_help():
+    """Show help information during conversation"""
+    click.echo("\n🆘 Help - What I Can Do:")
+    click.echo("")
+    click.echo("📧 Email Processing:")
+    click.echo("   • 'Here's an email: [paste email content]'")
+    click.echo("   • 'Process this file: /path/to/email.pdf'")
+    click.echo("   • 'I have an email I need help with'")
+    click.echo("")
+    click.echo("🔍 Information Extraction:")
+    click.echo("   • 'What are the key details?'")
+    click.echo("   • 'Show me the summary'")
+    click.echo("   • 'Who sent this email?'")
+    click.echo("")
+    click.echo("✍️ Reply Drafting:")
+    click.echo("   • 'Draft a reply'")
+    click.echo("   • 'Write a formal response'")
+    click.echo("   • 'Help me respond to this email'")
+    click.echo("")
+    click.echo("🔧 Draft Refinement:")
+    click.echo("   • 'Make it more professional'")
+    click.echo("   • 'Add a meeting request'")
+    click.echo("   • 'Make it shorter and more concise'")
+    click.echo("")
+    click.echo("💾 Saving:")
+    click.echo("   • 'Save this draft'")
+    click.echo("   • 'Export to a file'")
+    click.echo("   • 'Save to cloud storage'")
+    click.echo("")
+    click.echo("🔧 Special Commands:")
+    click.echo("   • 'help' - Show this help")
+    click.echo("   • 'status' - Show conversation status")
+    click.echo("   • 'reset' - Start a new conversation")
+    click.echo("   • 'clear' - Clear the screen")
+    click.echo("   • 'exit' - Leave the assistant")
+    click.echo("")
+
+
+def show_status_in_conversation(agent: ConversationalEmailAgent):
+    """Show status information during conversation"""
+    summary = agent.get_conversation_summary()
+    
+    click.echo("\n📊 Current Status:")
+    click.echo(f"   🔄 State: {summary['conversation_state'].replace('_', ' ').title()}")
+    click.echo(f"   💬 Messages: {summary['conversation_count']}")
+    click.echo(f"   ✅ Successful: {summary['successful_operations']}")
+    click.echo(f"   ❌ Failed: {summary['failed_operations']}")
+    click.echo(f"   📧 Email: {'Loaded' if summary['has_email_loaded'] else 'Not loaded'}")
+    click.echo(f"   📝 Draft: {'Available' if summary['has_draft'] else 'Not created'}")
+    
+    if summary['draft_history_count'] > 0:
+        click.echo(f"   🔄 Draft versions: {summary['draft_history_count']}")
+    
+    click.echo("")
+
+
+if __name__ == "__main__":
+    cli()

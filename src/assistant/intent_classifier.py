@@ -1,0 +1,383 @@
+"""
+Hybrid intent classification system for the conversational email agent.
+Uses rule-based patterns for clear cases and LLM classification for ambiguous inputs.
+"""
+
+import re
+import json
+from typing import Dict, Any, Optional, List
+from dataclasses import dataclass
+
+from assistant.conversation_state import ConversationContext, ConversationState
+
+
+@dataclass
+class IntentResult:
+    """Result of intent classification"""
+    intent: str
+    confidence: float
+    parameters: Dict[str, Any]
+    reasoning: str
+    method: str  # 'rule_based' or 'llm_based'
+
+
+class HybridIntentClassifier:
+    """
+    Hybrid intent classifier that uses rule-based patterns for clear cases
+    and LLM classification for ambiguous inputs
+    """
+    
+    def __init__(self, email_processor=None):
+        self.email_processor = email_processor
+        self._setup_rule_patterns()
+        self._setup_context_patterns()
+    
+    def _setup_rule_patterns(self):
+        """Define rule-based patterns for common intents"""
+        self.intent_patterns = {
+            'LOAD_EMAIL': {
+                'patterns': [
+                    r'here.s an email',
+                    r'here is an email',
+                    r'process this email',
+                    r'i have an email',
+                    r'can you help with this email',
+                    r'\.pdf$|\.txt$',  # file extensions
+                    r'from:.*to:.*subject:',  # email format indicators
+                    r'subject:.*from:',  # alternative email format
+                    r'dear.*sincerely|regards|best',  # email content patterns
+                ],
+                'confidence': 0.9
+            },
+            'DRAFT_REPLY': {
+                'patterns': [
+                    r'draft.*reply',
+                    r'write.*response',
+                    r'help.*respond',
+                    r'need to reply',
+                    r'create.*reply',
+                    r'compose.*response',
+                    r'draft.*email',
+                ],
+                'confidence': 0.85
+            },
+            'REFINE_DRAFT': {
+                'patterns': [
+                    r'make it more (formal|casual|professional|friendly|polite)',
+                    r'change.*tone',
+                    r'revise.*draft',
+                    r'improve.*reply',
+                    r'make it (shorter|longer|more concise)',
+                    r'add.*meeting',
+                    r'include.*availability',
+                    r'more (professional|formal)',
+                ],
+                'confidence': 0.8
+            },
+            'SAVE_DRAFT': {
+                'patterns': [
+                    r'save.*draft',
+                    r'save.*reply',
+                    r'export.*file',
+                    r'keep.*draft',
+                    r'save it',
+                    r'save this',
+                ],
+                'confidence': 0.9
+            },
+            'EXTRACT_INFO': {
+                'patterns': [
+                    r'what are.*key details',
+                    r'show.*summary',
+                    r'extract.*information',
+                    r'who sent.*email',
+                    r'what.s.*about',
+                    r'key information',
+                ],
+                'confidence': 0.8
+            },
+            'GENERAL_HELP': {
+                'patterns': [
+                    r'^help$',
+                    r'^what can you do',
+                    r'how does this work',
+                    r'what are your capabilities',
+                    r'how do i',
+                    r'explain',
+                ],
+                'confidence': 0.9
+            },
+            'CONTINUE_WORKFLOW': {
+                'patterns': [
+                    r'^yes$',
+                    r'^ok$',
+                    r'^okay$',
+                    r'^continue$',
+                    r'^proceed$',
+                    r'^next$',
+                    r'^go ahead$',
+                    r'sounds good',
+                    r'that works',
+                ],
+                'confidence': 0.7  # Lower confidence as context-dependent
+            }
+        }
+    
+    def _setup_context_patterns(self):
+        """Define context-aware pattern adjustments"""
+        self.context_adjustments = {
+            ConversationState.EMAIL_LOADED: {
+                'yes_patterns': ['CONTINUE_WORKFLOW', 'EXTRACT_INFO'],
+                'default_boost': {'DRAFT_REPLY': 0.1, 'EXTRACT_INFO': 0.1}
+            },
+            ConversationState.INFO_EXTRACTED: {
+                'yes_patterns': ['CONTINUE_WORKFLOW', 'DRAFT_REPLY'],
+                'default_boost': {'DRAFT_REPLY': 0.15}
+            },
+            ConversationState.DRAFT_CREATED: {
+                'yes_patterns': ['CONTINUE_WORKFLOW', 'SAVE_DRAFT'],
+                'default_boost': {'SAVE_DRAFT': 0.1, 'REFINE_DRAFT': 0.1}
+            },
+            ConversationState.DRAFT_REFINED: {
+                'yes_patterns': ['CONTINUE_WORKFLOW', 'SAVE_DRAFT'],
+                'default_boost': {'SAVE_DRAFT': 0.15}
+            }
+        }
+    
+    def classify(self, user_input: str, context: ConversationContext) -> IntentResult:
+        """
+        Classify user intent using hybrid approach
+        
+        Args:
+            user_input: The user's message
+            context: Current conversation context
+            
+        Returns:
+            IntentResult with classified intent and metadata
+        """
+        # First, try rule-based classification
+        rule_result = self._classify_with_rules(user_input, context)
+        
+        # If rule-based classification is confident, use it
+        if rule_result.confidence >= 0.8:
+            return rule_result
+        
+        # For ambiguous cases, use LLM classification if available
+        if self.email_processor and rule_result.confidence < 0.6:
+            llm_result = self._classify_with_llm(user_input, context)
+            if llm_result.confidence > rule_result.confidence:
+                return llm_result
+        
+        # Fall back to rule-based result or clarification needed
+        if rule_result.confidence > 0.3:
+            return rule_result
+        else:
+            return IntentResult(
+                intent='CLARIFICATION_NEEDED',
+                confidence=0.9,
+                parameters={'original_input': user_input},
+                reasoning='Input is ambiguous and needs clarification',
+                method='fallback'
+            )
+    
+    def _classify_with_rules(self, user_input: str, context: ConversationContext) -> IntentResult:
+        """Classify intent using rule-based patterns"""
+        user_input_lower = user_input.lower().strip()
+        best_match = None
+        best_confidence = 0.0
+        best_parameters = {}
+        
+        # Check for email content in input
+        email_content = self._extract_email_content(user_input)
+        if email_content:
+            best_parameters['email_content'] = email_content
+        
+        # Check each intent pattern
+        for intent, config in self.intent_patterns.items():
+            confidence = 0.0
+            matched_patterns = []
+            
+            for pattern in config['patterns']:
+                if re.search(pattern, user_input_lower):
+                    confidence = max(confidence, config['confidence'])
+                    matched_patterns.append(pattern)
+            
+            # Apply context-based adjustments
+            confidence = self._apply_context_adjustments(
+                intent, confidence, user_input_lower, context
+            )
+            
+            if confidence > best_confidence:
+                best_confidence = confidence
+                best_match = intent
+                best_parameters.update({
+                    'matched_patterns': matched_patterns,
+                    'tone': self._extract_tone(user_input_lower),
+                    'refinement_instructions': self._extract_refinement_instructions(user_input_lower)
+                })
+        
+        return IntentResult(
+            intent=best_match or 'CLARIFICATION_NEEDED',
+            confidence=best_confidence,
+            parameters=best_parameters,
+            reasoning=f"Rule-based match with confidence {best_confidence}",
+            method='rule_based'
+        )
+    
+    def _apply_context_adjustments(self, intent: str, confidence: float, 
+                                 user_input: str, context: ConversationContext) -> float:
+        """Apply context-based confidence adjustments"""
+        current_state = context.current_state
+        
+        if current_state not in self.context_adjustments:
+            return confidence
+        
+        adjustments = self.context_adjustments[current_state]
+        
+        # Handle simple affirmative responses in context
+        if user_input in ['yes', 'ok', 'okay', 'continue', 'proceed']:
+            if intent == 'CONTINUE_WORKFLOW':
+                return 0.9
+        
+        # Apply default boosts for likely intents in current state
+        if 'default_boost' in adjustments and intent in adjustments['default_boost']:
+            confidence += adjustments['default_boost'][intent]
+        
+        return min(confidence, 1.0)  # Cap at 1.0
+    
+    def _extract_email_content(self, user_input: str) -> Optional[str]:
+        """Extract email content from user input if present"""
+        # Look for email-like patterns
+        email_indicators = [
+            r'from:.*to:.*subject:',
+            r'subject:.*from:',
+            r'dear.*sincerely|regards|best',
+        ]
+        
+        for pattern in email_indicators:
+            if re.search(pattern, user_input, re.IGNORECASE | re.DOTALL):
+                # If it looks like email content, return the whole input
+                return user_input.strip()
+        
+        return None
+    
+    def _extract_tone(self, user_input: str) -> Optional[str]:
+        """Extract requested tone from user input"""
+        tone_patterns = {
+            'formal': r'formal|professional',
+            'casual': r'casual|informal|friendly',
+            'concise': r'concise|brief|short',
+            'polite': r'polite|courteous',
+        }
+        
+        for tone, pattern in tone_patterns.items():
+            if re.search(pattern, user_input):
+                return tone
+        
+        return None
+    
+    def _extract_refinement_instructions(self, user_input: str) -> Optional[str]:
+        """Extract specific refinement instructions"""
+        refinement_patterns = [
+            r'make it (more|less) \w+',
+            r'add \w+',
+            r'include \w+',
+            r'change \w+',
+            r'remove \w+',
+        ]
+        
+        instructions = []
+        for pattern in refinement_patterns:
+            matches = re.findall(pattern, user_input)
+            instructions.extend(matches)
+        
+        return ' '.join(instructions) if instructions else None
+    
+    def _classify_with_llm(self, user_input: str, context: ConversationContext) -> IntentResult:
+        """Classify intent using LLM when rule-based classification is uncertain"""
+        if not self.email_processor:
+            return IntentResult(
+                intent='CLARIFICATION_NEEDED',
+                confidence=0.5,
+                parameters={},
+                reasoning='LLM classification not available',
+                method='fallback'
+            )
+        
+        # Create classification prompt
+        prompt = self._create_classification_prompt(user_input, context)
+        
+        try:
+            response = self.email_processor.send_prompt(prompt)
+            result = self._parse_llm_response(response)
+            result.method = 'llm_based'
+            return result
+        except Exception as e:
+            print(f"LLM classification failed: {e}")
+            return IntentResult(
+                intent='CLARIFICATION_NEEDED',
+                confidence=0.5,
+                parameters={'error': str(e)},
+                reasoning='LLM classification failed',
+                method='error_fallback'
+            )
+    
+    def _create_classification_prompt(self, user_input: str, context: ConversationContext) -> str:
+        """Create prompt for LLM intent classification"""
+        valid_intents = [
+            'LOAD_EMAIL', 'DRAFT_REPLY', 'EXTRACT_INFO', 'REFINE_DRAFT',
+            'SAVE_DRAFT', 'GENERAL_HELP', 'CONTINUE_WORKFLOW', 'CLARIFICATION_NEEDED'
+        ]
+        
+        prompt = f"""
+Analyze the user's message and classify their intent for an email assistant conversation.
+
+Current conversation state: {context.current_state.value}
+Recent conversation: {context.get_recent_history(3)}
+User message: "{user_input}"
+
+Classify the intent as one of: {', '.join(valid_intents)}
+
+Consider the conversation context and current state when determining intent.
+
+Return your response in this exact JSON format:
+{{
+  "intent": "INTENT_NAME",
+  "confidence": 0.95,
+  "parameters": {{
+    "email_content": "extracted email if present",
+    "tone": "formal/casual/etc if specified",
+    "refinement_instructions": "specific changes requested"
+  }},
+  "reasoning": "Why this intent was chosen"
+}}
+"""
+        return prompt
+    
+    def _parse_llm_response(self, response: str) -> IntentResult:
+        """Parse LLM response into IntentResult"""
+        try:
+            # Clean up response if it has markdown formatting
+            if "```json" in response:
+                response = response.split("```json")[1].split("```")[0]
+            elif "```" in response:
+                response = response.split("```")[1]
+            
+            data = json.loads(response.strip())
+            
+            return IntentResult(
+                intent=data.get('intent', 'CLARIFICATION_NEEDED'),
+                confidence=float(data.get('confidence', 0.5)),
+                parameters=data.get('parameters', {}),
+                reasoning=data.get('reasoning', 'LLM classification'),
+                method='llm_based'
+            )
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            print(f"Failed to parse LLM response: {e}")
+            return IntentResult(
+                intent='CLARIFICATION_NEEDED',
+                confidence=0.3,
+                parameters={'parse_error': str(e), 'raw_response': response},
+                reasoning='Failed to parse LLM response',
+                method='error_fallback'
+            )

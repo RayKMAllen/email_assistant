@@ -1,7 +1,7 @@
 import pytest
 import json
 from unittest.mock import patch, MagicMock
-from src.assistant.llm_session import BedrockSession
+from src.assistant.llm_session import EmailLLMProcessor
 from src.assistant import utils
 
 
@@ -11,7 +11,7 @@ def session():
         mock_client = MagicMock()
         mock_runtime = MagicMock()
         mock_boto.side_effect = [mock_client, mock_runtime]
-        yield BedrockSession()
+        yield EmailLLMProcessor()
 
 
 def test_send_prompt_adds_to_history_and_returns_response(session):
