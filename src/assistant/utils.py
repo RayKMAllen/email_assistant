@@ -96,26 +96,126 @@ def save_draft_to_s3(draft: str, bucket_name: str, filepath=None) -> None:
 
     Args:
         draft (str): The draft text to save.
-        s3: The boto3 S3 client.
+        bucket_name (str): The S3 bucket name.
         filepath (str, optional): The S3 object name (key) where the draft will be saved.
         If None, a filename based on the current date and time will be used.
     """
+    print(f"Attempting to save draft to S3 bucket: {bucket_name}")
+    
     # Convert string to bytes
     draft_bytes = draft.encode("utf-8")
 
     if filepath is None:
         filename = make_now_filename()
-        filepath = os.path.join("drafts", filename)
-
-    s3 = boto3.client("s3")
+        filepath = os.path.join("drafts", filename).replace("\\", "/")  # Ensure forward slashes for S3
+    
+    print(f"S3 key will be: {filepath}")
 
     try:
+        s3 = boto3.client("s3")
+        print("S3 client created successfully")
+        
+        # Check if bucket exists and is accessible
+        try:
+            s3.head_bucket(Bucket=bucket_name)
+            print(f"Bucket {bucket_name} is accessible")
+        except Exception as bucket_error:
+            print(f"Warning: Cannot access bucket {bucket_name}: {bucket_error}")
+        
+        # Attempt to save the object
         s3.put_object(Bucket=bucket_name, Key=filepath, Body=draft_bytes)
+        print(f"Draft saved successfully to s3://{bucket_name}/{filepath}")
+        
     except Exception as e:
-        print(f"Failed to save draft to S3: {e}")
-        raise
+        error_msg = f"Failed to save draft to S3: {type(e).__name__}: {str(e)}"
+        print(error_msg)
+        
+        # Provide more specific error information
+        if "NoCredentialsError" in str(type(e)):
+            print("AWS credentials not found. Please configure AWS credentials.")
+        elif "AccessDenied" in str(e):
+            print("Access denied. Check your AWS permissions for S3.")
+        elif "NoSuchBucket" in str(e):
+            print(f"Bucket '{bucket_name}' does not exist or is not accessible.")
+        
+        raise Exception(error_msg)
 
-    print(f"Draft saved to s3://{bucket_name}/{filepath}")
+
+def extract_email_content_from_response(llm_response: str) -> str:
+    """
+    Extracts the actual email content from an LLM response that may contain
+    explanatory text before the email.
+    
+    Args:
+        llm_response (str): The full LLM response
+        
+    Returns:
+        str: Just the email content without explanatory text
+    """
+    lines = llm_response.strip().split('\n')
+    
+    # Look for common patterns that indicate the start of the actual email
+    email_start_patterns = [
+        'Hi ',
+        'Hello ',
+        'Dear ',
+        'Subject:',
+        'To:',
+        'From:',
+        'Thank you',
+        'Thanks',
+        'I hope',
+        'I am writing',
+        'I would like',
+        'Please',
+        'Regarding',
+        'Re:',
+        'Best regards',
+        'Sincerely',
+        'Kind regards'
+    ]
+    
+    # Find the first line that looks like it starts an email
+    for i, line in enumerate(lines):
+        line_stripped = line.strip()
+        if line_stripped:  # Skip empty lines
+            # Check if this line starts with any email pattern
+            for pattern in email_start_patterns:
+                if line_stripped.startswith(pattern):
+                    # Return everything from this line onwards
+                    return '\n'.join(lines[i:]).strip()
+            
+            # Also check if the line contains a colon (like "Here's a draft:" or "Here's the response:")
+            # and the next non-empty line might be the email start
+            if ':' in line_stripped and i < len(lines) - 1:
+                # Look at the next few lines to see if they start an email
+                for j in range(i + 1, min(i + 4, len(lines))):
+                    next_line = lines[j].strip()
+                    if next_line:
+                        for pattern in email_start_patterns:
+                            if next_line.startswith(pattern):
+                                return '\n'.join(lines[j:]).strip()
+    
+    # If no clear email start pattern is found, look for the last paragraph
+    # that doesn't contain explanatory words
+    explanatory_words = ['draft', 'response', 'reply', 'based on', 'here\'s', 'refined', 'professional']
+    
+    # Split into paragraphs (double newlines)
+    paragraphs = llm_response.strip().split('\n\n')
+    
+    # Find the first paragraph that doesn't seem explanatory
+    for paragraph in paragraphs:
+        paragraph_lower = paragraph.lower()
+        is_explanatory = any(word in paragraph_lower for word in explanatory_words)
+        
+        if not is_explanatory and len(paragraph.strip()) > 10:
+            # Return this paragraph and everything after it
+            start_index = llm_response.find(paragraph)
+            if start_index != -1:
+                return llm_response[start_index:].strip()
+    
+    # Fallback: return the original response if we can't identify the email content
+    return llm_response.strip()
 
 
 # %%

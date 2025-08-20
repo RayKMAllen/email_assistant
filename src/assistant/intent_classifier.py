@@ -82,6 +82,10 @@ class HybridIntentClassifier:
                     r'keep.*draft',
                     r'save it',
                     r'save this',
+                    r'save.*cloud',
+                    r'save.*s3',
+                    r'cloud.*storage',
+                    r'upload.*draft',
                 ],
                 'confidence': 0.9
             },
@@ -213,7 +217,9 @@ class HybridIntentClassifier:
                 best_parameters.update({
                     'matched_patterns': matched_patterns,
                     'tone': self._extract_tone(user_input_lower),
-                    'refinement_instructions': self._extract_refinement_instructions(user_input_lower)
+                    'refinement_instructions': self._extract_refinement_instructions(user_input_lower),
+                    'cloud': self._extract_cloud_preference(user_input_lower),
+                    'filepath': self._extract_filepath(user_input_lower)
                 })
         
         return IntentResult(
@@ -246,7 +252,12 @@ class HybridIntentClassifier:
         return min(confidence, 1.0)  # Cap at 1.0
     
     def _extract_email_content(self, user_input: str) -> Optional[str]:
-        """Extract email content from user input if present"""
+        """Extract email content or file path from user input if present"""
+        # First, look for file paths in natural language
+        file_path = self._extract_file_path(user_input)
+        if file_path:
+            return file_path
+        
         # Look for email-like patterns
         email_indicators = [
             r'from:.*to:.*subject:',
@@ -258,6 +269,27 @@ class HybridIntentClassifier:
             if re.search(pattern, user_input, re.IGNORECASE | re.DOTALL):
                 # If it looks like email content, return the whole input
                 return user_input.strip()
+        
+        return None
+    
+    def _extract_file_path(self, user_input: str) -> Optional[str]:
+        """Extract file path from natural language input"""
+        # Patterns to match file paths in natural language
+        file_path_patterns = [
+            r'(?:process|load|open|read|analyze|help with|work with)\s+(?:this\s+)?(?:file|email|document):\s*([^\s]+)',
+            r'(?:here.s|here is)\s+(?:a\s+)?(?:file|email|document):\s*([^\s]+)',
+            r'(?:file|email|document)\s+(?:is|at|located at):\s*([^\s]+)',
+            r'(?:load|process|analyze)\s+([^\s]+\.(?:pdf|txt|doc|docx|eml))',
+            r'([^\s]+\.(?:pdf|txt|doc|docx|eml))(?:\s|$)',  # Just a file with extension
+        ]
+        
+        for pattern in file_path_patterns:
+            match = re.search(pattern, user_input, re.IGNORECASE)
+            if match:
+                file_path = match.group(1).strip()
+                # Remove quotes if present
+                file_path = file_path.strip('"\'')
+                return file_path
         
         return None
     
@@ -292,6 +324,45 @@ class HybridIntentClassifier:
             instructions.extend(matches)
         
         return ' '.join(instructions) if instructions else None
+    
+    def _extract_cloud_preference(self, user_input: str) -> bool:
+        """Extract whether user wants to save to cloud/S3"""
+        cloud_patterns = [
+            r'save.*cloud',
+            r'save.*s3',
+            r'cloud.*storage',
+            r'upload.*draft',
+            r'save.*aws',
+            r'to.*cloud',
+            r'in.*cloud'
+        ]
+        
+        for pattern in cloud_patterns:
+            if re.search(pattern, user_input):
+                return True
+        
+        return False
+    
+    def _extract_filepath(self, user_input: str) -> Optional[str]:
+        """Extract specific filepath if mentioned"""
+        # Look for filepath patterns like "save to /path/file.txt" or "save as filename.txt"
+        filepath_patterns = [
+            r'save\s+(?:to|as)\s+([^\s]+\.txt)',
+            r'save\s+(?:to|as)\s+([^\s]+\.pdf)',
+            r'save\s+(?:to|as)\s+([^\s]+)',
+            r'filepath?\s*:\s*([^\s]+)',
+            r'path\s*:\s*([^\s]+)'
+        ]
+        
+        for pattern in filepath_patterns:
+            match = re.search(pattern, user_input)
+            if match:
+                filepath = match.group(1).strip()
+                # Remove quotes if present
+                filepath = filepath.strip('"\'')
+                return filepath
+        
+        return None
     
     def _classify_with_llm(self, user_input: str, context: ConversationContext) -> IntentResult:
         """Classify intent using LLM when rule-based classification is uncertain"""
@@ -347,7 +418,9 @@ Return your response in this exact JSON format:
   "parameters": {{
     "email_content": "extracted email if present",
     "tone": "formal/casual/etc if specified",
-    "refinement_instructions": "specific changes requested"
+    "refinement_instructions": "specific changes requested",
+    "cloud": true/false,
+    "filepath": "specific filepath if mentioned"
   }},
   "reasoning": "Why this intent was chosen"
 }}
