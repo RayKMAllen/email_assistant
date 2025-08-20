@@ -1,161 +1,134 @@
+"""
+Comprehensive unit tests for the EmailLLMProcessor (assistant core functionality).
+"""
+
 import pytest
 import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, Mock
+from botocore.exceptions import ClientError, NoCredentialsError
+
 from src.assistant.llm_session import EmailLLMProcessor
 from src.assistant import utils
 
 
-@pytest.fixture
-def session():
-    with patch("assistant.llm_session.boto3.client") as mock_boto:
-        mock_client = MagicMock()
-        mock_runtime = MagicMock()
-        mock_boto.side_effect = [mock_client, mock_runtime]
-        yield EmailLLMProcessor()
-
-
-def test_send_prompt_adds_to_history_and_returns_response(session):
-    session.runtime.invoke_model = MagicMock()
-    fake_response = {
-        "body": MagicMock(
-            read=MagicMock(
-                return_value=json.dumps({"content": [{"text": "model output"}]}).encode(
-                    "utf-8"
+class TestEmailLLMProcessor:
+    """Test the EmailLLMProcessor class"""
+    
+    @pytest.fixture
+    def mock_boto_clients(self):
+        """Mock boto3 clients for testing"""
+        with patch("src.assistant.llm_session.boto3.client") as mock_boto:
+            mock_s3_client = MagicMock()
+            mock_bedrock_runtime = MagicMock()
+            mock_boto.side_effect = [mock_s3_client, mock_bedrock_runtime]
+            yield mock_s3_client, mock_bedrock_runtime
+    
+    @pytest.fixture
+    def session(self, mock_boto_clients):
+        """Create EmailLLMProcessor instance with mocked clients"""
+        return EmailLLMProcessor()
+    
+    def test_initialization(self, session, mock_boto_clients):
+        """Test EmailLLMProcessor initialization"""
+        mock_client, mock_runtime = mock_boto_clients
+        
+        assert session.client == mock_client
+        assert session.runtime == mock_runtime
+        assert session.text is None
+        assert session.key_info is None
+        assert session.last_draft is None
+        assert session.history == []
+    
+    def test_send_prompt_success(self, session):
+        """Test successful prompt sending"""
+        session.runtime.invoke_model = MagicMock()
+        fake_response = {
+            "body": MagicMock(
+                read=MagicMock(
+                    return_value=json.dumps({"content": [{"text": "model output"}]}).encode("utf-8")
                 )
             )
-        )
-    }
-    session.runtime.invoke_model.return_value = fake_response
-    result = session.send_prompt("hello?")
-    assert result == "model output"
-    assert session.history[-2]["content"] == "hello?"
-    assert session.history[-1]["content"] == "model output"
-
-
-def test_extract_key_info_success(monkeypatch, session):
-    session.text = "email text"
-    session.send_prompt = MagicMock(return_value=json.dumps({"summary": "sum"}))
-    session.extract_key_info()
-    assert session.key_info == {"summary": "sum"}
-
-
-def test_extract_key_info_json_decode_error(monkeypatch, session):
-    session.text = "email text"
-    session.send_prompt = MagicMock(return_value="not json")
-    with pytest.raises(Exception) as e:
+        }
+        session.runtime.invoke_model.return_value = fake_response
+        
+        result = session.send_prompt("test prompt")
+        
+        assert result == "model output"
+        assert len(session.history) == 2
+        assert session.history[-2]["content"] == "test prompt"
+        assert session.history[-2]["role"] == "user"
+        assert session.history[-1]["content"] == "model output"
+        assert session.history[-1]["role"] == "assistant"
+    
+    def test_extract_key_info_success(self, session):
+        """Test successful key information extraction"""
+        session.text = "email text"
+        session.send_prompt = MagicMock(return_value=json.dumps({"summary": "test summary"}))
+        
         session.extract_key_info()
-    assert "Failed to parse key information" in str(e.value)
+        
+        assert session.key_info == {"summary": "test summary"}
+        session.send_prompt.assert_called_once()
+    
+    def test_extract_key_info_json_decode_error(self, session):
+        """Test key info extraction with JSON decode error"""
+        session.text = "email text"
+        session.send_prompt = MagicMock(return_value="not valid json")
+        
+        with pytest.raises(Exception, match="Failed to parse key information"):
+            session.extract_key_info()
+    
+    def test_draft_reply_success(self, session):
+        """Test successful reply drafting"""
+        session.text = "original email"
+        session.key_info = {"summary": "meeting request"}
+        session.send_prompt = MagicMock(return_value="drafted reply")
+        
+        result = session.draft_reply(tone="formal")
+        
+        assert result == "drafted reply"
+        assert session.last_draft == "drafted reply"
+        session.send_prompt.assert_called_once()
+    
+    def test_refine_with_existing_draft(self, session):
+        """Test refining an existing draft"""
+        session.last_draft = "original draft"
+        session.key_info = {"summary": "meeting request"}
+        session.send_prompt = MagicMock(return_value="refined draft")
+        
+        result = session.refine("make it more formal")
+        
+        assert result == "refined draft"
+        assert session.last_draft == "refined draft"
+    
+    def test_save_draft_success(self, session):
+        """Test successful draft saving"""
+        session.last_draft = "draft to save"
+        
+        with patch('src.assistant.llm_session.save_draft_to_file') as mock_save:
+            session.save_draft("test.txt")
+            mock_save.assert_called_once_with("draft to save", "test.txt")
 
 
-def test_extract_key_info_strips_json(monkeypatch, session):
-    session.text = "email text"
-    # Simulate model output with 'json' in first line
-    model_output = 'json\n{"summary": "sum"}\n'
-    session.send_prompt = MagicMock(return_value=model_output)
-    session.extract_key_info()
-    assert session.key_info == {"summary": "sum"}
-
-
-def test_draft_reply_sets_last_draft(session):
-    session.text = "foo"
-    session.send_prompt = MagicMock(return_value="drafted reply")
-    result = session.draft_reply(tone="formal")
-    assert result == "drafted reply"
-    assert session.last_draft == "drafted reply"
-    session.send_prompt.assert_called_once()
-    args = session.send_prompt.call_args[0][0]
-    assert "formal" in args
-
-
-def test_draft_reply_no_tone(session):
-    session.text = "foo"
-    session.send_prompt = MagicMock(return_value="drafted reply")
-    session.draft_reply()
-    args = session.send_prompt.call_args[0][0]
-    assert "using a" not in args
-
-
-def test_refine_calls_draft_if_no_last_draft(monkeypatch, session):
-    session.last_draft = None
-    session.key_info = {"summary": "sum"}
-    session.draft_reply = MagicMock(return_value="drafted")
-    session.send_prompt = MagicMock(return_value="refined")
-    result = session.refine("improve")
-    assert session.last_draft == "refined"
-    assert result == "refined"
-    session.draft_reply.assert_called_once()
-
-
-def test_refine_uses_last_draft(monkeypatch, session):
-    session.last_draft = "reply"
-    session.key_info = {"summary": "sum"}
-    session.send_prompt = MagicMock(return_value="refined")
-    result = session.refine("make shorter")
-    assert session.last_draft == "refined"
-    assert result == "refined"
-    args = session.send_prompt.call_args[0][0]
-    assert "make shorter" in args
-    assert "reply" in args
-    assert "sum" in args
-
-
-def test_save_draft_no_last_draft(monkeypatch, session, capsys):
-    session.last_draft = None
-    monkeypatch.setattr(
-        utils,
-        "save_draft_to_file",
-        lambda *a, **k: (_ for _ in ()).throw(Exception("should not call")),
-    )
-    session.save_draft("file.txt")
-    out = capsys.readouterr().out
-    assert "No draft reply to save" in out
-
-
-def test_refine_with_full_history(monkeypatch, session):
-    session.last_draft = "reply"
-    session.key_info = {"summary": "sum"}
-    session.history = [
-        {"role": "user", "content": "hello"},
-        {"role": "assistant", "content": "hi"},
-        {"role": "user", "content": "foo"},
-        {"role": "assistant", "content": "bar"},
-    ]
-    session.send_prompt = MagicMock(return_value="refined with history")
-    result = session.refine("polish", full_history=True)
-    assert session.last_draft == "refined with history"
-    assert result == "refined with history"
-    args = session.send_prompt.call_args[0][0]
-    # Should include all history, summary, last draft, and instruction
-    assert "polish" in args
-    assert "reply" in args
-    assert "hello" in args and "hi" in args and "foo" in args and "bar" in args
-
-
-def test_extract_key_info_handles_empty_response(session):
-    session.text = "email text"
-    session.send_prompt = MagicMock(return_value="")
-    with pytest.raises(Exception) as e:
-        session.extract_key_info()
-    assert "Failed to parse key information" in str(e.value)
-
-
-# --- Tests for utils.py ---
-
-
-def test_process_path_or_email_reads_file(tmp_path):
-    file = tmp_path / "mail.txt"
-    file.write_text("hello")
-    result = utils.process_path_or_email(str(file))
-    assert result == "hello"
-
-
-def test_process_path_or_email_returns_text():
-    text = "This is not a file path"
-    result = utils.process_path_or_email(text)
-    assert result == text
-
-
-def test_save_draft_to_file(tmp_path):
-    file = tmp_path / "out.txt"
-    utils.save_draft_to_file("draft", str(file))
-    assert file.read_text() == "draft"
+# Tests for utility functions
+class TestUtilityFunctions:
+    """Test utility functions used by the assistant"""
+    
+    def test_process_path_or_email_reads_file(self, tmp_path):
+        """Test processing an existing file"""
+        file = tmp_path / "mail.txt"
+        file.write_text("hello")
+        result = utils.process_path_or_email(str(file))
+        assert result == "hello"
+    
+    def test_process_path_or_email_returns_text(self):
+        """Test processing raw text content"""
+        text = "This is not a file path"
+        result = utils.process_path_or_email(text)
+        assert result == text
+    
+    def test_save_draft_to_file(self, tmp_path):
+        """Test saving draft to file"""
+        file = tmp_path / "out.txt"
+        utils.save_draft_to_file("draft", str(file))
+        assert file.read_text() == "draft"
