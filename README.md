@@ -32,10 +32,11 @@ optional tone and refinement.
     ``` sh
     git clone https://github.com/RayKMAllen/email_assistant.git
     ```
-2.  Specify your S3 bucket name in the `prompts_parameters.py` file in the root directory:
+2.  Specify the base model you want to use and your S3 bucket name in the `config.config` file in the root directory:
 
     ```
-    BUCKET_NAME=your-s3-bucket-name
+    model_id = eu.anthropic.claude-3-7-sonnet-20250219-v1:0
+    bucket_name = your-s3-bucket-name
     ```
 3.  Install the package:
     

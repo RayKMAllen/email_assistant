@@ -9,17 +9,30 @@ import boto3
 import json
 import pprint
 from botocore.exceptions import ClientError
+import configparser
+import os
 
 from assistant.utils import process_path_or_email, save_draft_to_file, save_draft_to_s3
 from assistant.prompts_params import (
-    MODEL_ID,
     DRAFT_PREFIX,
     EXTRACT_PREFIX,
     MAX_TOKENS,
     TEMPERATURE,
     TOP_P,
-    BUCKET_NAME,
 )
+
+# Load configuration from config.config in the root directory
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "..", ".."))
+config_path = os.path.join(ROOT_DIR, "config.config")
+
+# Load config
+config = configparser.ConfigParser()
+config.read(config_path)
+
+# Access values from [DEFAULT]
+MODEL_ID = config["DEFAULT"]["model_id"]
+BUCKET_NAME = config["DEFAULT"]["bucket_name"]
 
 
 class BedrockSession:
