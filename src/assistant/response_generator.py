@@ -6,7 +6,7 @@ Generates contextual responses with proactive guidance based on conversation sta
 from typing import Dict, Any
 import random
 
-from src.assistant.conversation_state import ConversationState, ConversationStateManager
+from assistant.conversation_state import ConversationState, ConversationStateManager
 
 
 class ConversationalResponseGenerator:
@@ -226,13 +226,21 @@ class ConversationalResponseGenerator:
                 elif subject:
                     email_info = f" about {subject}"
                 
-                if 'summary' in extracted_info:
+                # If info was auto-extracted, include it in the response
+                if result.get('auto_extracted') and 'summary' in extracted_info:
+                    summary = f"I've also extracted the key information. Here's a quick summary: {extracted_info['summary']}"
+                elif 'summary' in extracted_info:
                     summary = f"Here's a quick summary: {extracted_info['summary']}"
         
         return template.format(email_info=email_info, summary=summary)
     
     def _format_extract_info_response(self, template: str, result: Dict[str, Any]) -> str:
         """Format response for information extraction"""
+        # Handle case where info was already extracted
+        if isinstance(result, dict) and result.get('already_extracted'):
+            template = "Here's the key information I extracted earlier:"
+            result = result.get('extracted_info', {})
+        
         response = template
         
         if isinstance(result, dict):
@@ -251,10 +259,14 @@ class ConversationalResponseGenerator:
                     if isinstance(value, dict):
                         contact_info = ", ".join([f"{k}: {v}" for k, v in value.items()])
                         info_lines.append(f"**Sender Contact:** {contact_info}")
+                    elif isinstance(value, str):
+                        info_lines.append(f"**Sender Contact:** {value}")
                 elif key == 'receiver_contact_details':
                     if isinstance(value, dict):
                         contact_info = ", ".join([f"{k}: {v}" for k, v in value.items()])
                         info_lines.append(f"**Receiver Contact:** {contact_info}")
+                    elif isinstance(value, str):
+                        info_lines.append(f"**Receiver Contact:** {value}")
             
             if info_lines:
                 response += "\n\n" + "\n".join(info_lines)

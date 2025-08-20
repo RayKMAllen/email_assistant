@@ -6,10 +6,10 @@ state management, email processing, and response generation.
 from typing import Dict, Any, Tuple
 import traceback
 
-from src.assistant.llm_session import EmailLLMProcessor
-from src.assistant.conversation_state import ConversationStateManager, ConversationState
-from src.assistant.intent_classifier import HybridIntentClassifier, IntentResult
-from src.assistant.response_generator import ConversationalResponseGenerator
+from assistant.llm_session import EmailLLMProcessor
+from assistant.conversation_state import ConversationStateManager, ConversationState
+from assistant.intent_classifier import HybridIntentClassifier, IntentResult
+from assistant.response_generator import ConversationalResponseGenerator
 
 
 class ConversationalEmailAgent:
@@ -64,11 +64,13 @@ class ConversationalEmailAgent:
             # Execute the appropriate action based on intent
             operation_result, success = self._execute_intent(intent_result, user_input)
             
-            # Update conversation state
-            new_state = self.state_manager.transition_state(
-                intent_result.intent, 
-                success
-            )
+            # Update conversation state - handle auto-extraction case
+            if (intent_result.intent == 'LOAD_EMAIL' and success and
+                isinstance(operation_result, dict) and operation_result.get('auto_extracted')):
+                # If info was automatically extracted, transition to INFO_EXTRACTED state
+                new_state = self.state_manager.transition_state('EXTRACT_INFO', success)
+            else:
+                new_state = self.state_manager.transition_state(intent_result.intent, success)
             
             # Track success/failure
             if success:
@@ -157,7 +159,8 @@ class ConversationalEmailAgent:
             
             return {
                 'email_content': email_content,
-                'extracted_info': extracted_info
+                'extracted_info': extracted_info,
+                'auto_extracted': True  # Flag to indicate info was automatically extracted
             }, True
             
         except Exception as e:
@@ -172,11 +175,16 @@ class ConversationalEmailAgent:
             # Extract key info if not already done
             if not self.email_processor.key_info:
                 self.email_processor.extract_key_info()
-            
-            extracted_info = self.email_processor.key_info
-            self.state_manager.update_context(extracted_info=extracted_info)
-            
-            return extracted_info, True
+                extracted_info = self.email_processor.key_info
+                self.state_manager.update_context(extracted_info=extracted_info)
+                return extracted_info, True
+            else:
+                # Info already extracted, just return it
+                extracted_info = self.email_processor.key_info
+                return {
+                    'extracted_info': extracted_info,
+                    'already_extracted': True  # Flag to indicate this was already done
+                }, True
             
         except Exception as e:
             return {'error': str(e)}, False
@@ -242,8 +250,14 @@ class ConversationalEmailAgent:
             # Determine actual filepath for response
             if not filepath:
                 from datetime import datetime
+                import os
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filepath = f"drafts/draft_{timestamp}.txt"
+                filename = f"draft_{timestamp}.txt"
+                if cloud:
+                    filepath = f"drafts/{filename}"
+                else:
+                    drafts_dir = os.path.join(os.path.expanduser("~"), "drafts")
+                    filepath = os.path.join(drafts_dir, filename)
             
             return {'filepath': filepath, 'cloud': cloud}, True
             

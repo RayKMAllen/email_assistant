@@ -97,6 +97,7 @@ class HybridIntentClassifier:
             },
             'SAVE_DRAFT': {
                 'patterns': [
+                    r'^save$',  # Simple "save" command
                     r'save.*draft',
                     r'save.*reply',
                     r'export.*file',
@@ -131,6 +132,10 @@ class HybridIntentClassifier:
                     r'who sent.*email',
                     r'what.s.*about',
                     r'key information',
+                    r'^summary$',
+                    r'show.*info',
+                    r'key.*details',
+                    r'what.*summary',
                 ],
                 'confidence': 0.8
             },
@@ -385,13 +390,18 @@ class HybridIntentClassifier:
     def _extract_filepath(self, user_input: str) -> Optional[str]:
         """Extract specific filepath if mentioned"""
         # Look for filepath patterns like "save to /path/file.txt" or "save as filename.txt"
+        # But exclude cloud-related terms
+        cloud_terms = ['cloud', 's3', 'aws', 'bucket']
+        
         filepath_patterns = [
-            r'save\s+to\s+([^\s]+)',      # "save to /path/file.txt"
+            r'save\s+to\s+([^\s]+\.(?:txt|doc|docx|pdf|eml))',  # "save to file.ext" - must have extension
             r'save\s+as\s+([^\s]+)',      # "save as filename.txt"
             r'save\s+(?:to|as)\s+([^\s]+\.txt)',
             r'save\s+(?:to|as)\s+([^\s]+\.pdf)',
             r'filepath?\s*:\s*([^\s]+)',
-            r'path\s*:\s*([^\s]+)'
+            r'path\s*:\s*([^\s]+)',
+            r'save\s+to\s+([/\\][\w/\\.-]+)',  # Absolute paths starting with / or \
+            r'save\s+to\s+([\w.-]+[/\\][\w/\\.-]+)',  # Relative paths with directory separators
         ]
         
         for pattern in filepath_patterns:
@@ -400,6 +410,11 @@ class HybridIntentClassifier:
                 filepath = match.group(1).strip()
                 # Remove quotes if present
                 filepath = filepath.strip('"\'')
+                
+                # Skip if it's a cloud-related term
+                if filepath.lower() in cloud_terms:
+                    continue
+                    
                 return filepath
         
         return None

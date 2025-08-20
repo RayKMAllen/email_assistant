@@ -69,6 +69,7 @@ class ConversationStateManager:
         self.transitions = {
             ConversationState.GREETING: {
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,
+                'EXTRACT_INFO': ConversationState.INFO_EXTRACTED,  # Allow direct transition for auto-extraction
                 'GENERAL_HELP': ConversationState.GREETING,
                 'CLARIFICATION_NEEDED': ConversationState.GREETING,
             },
@@ -85,6 +86,7 @@ class ConversationStateManager:
             ConversationState.INFO_EXTRACTED: {
                 'DRAFT_REPLY': ConversationState.DRAFT_CREATED,
                 'CONTINUE_WORKFLOW': ConversationState.DRAFT_CREATED,
+                'EXTRACT_INFO': ConversationState.INFO_EXTRACTED,  # Allow re-showing info
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,  # New email
             },
             ConversationState.DRAFT_CREATED: {
@@ -92,6 +94,7 @@ class ConversationStateManager:
                 'SAVE_DRAFT': ConversationState.READY_TO_SAVE,
                 'CONTINUE_WORKFLOW': ConversationState.READY_TO_SAVE,
                 'DRAFT_REPLY': ConversationState.DRAFT_CREATED,  # New draft
+                'EXTRACT_INFO': ConversationState.DRAFT_CREATED,  # Allow showing info without changing state
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,  # New email
             },
             ConversationState.DRAFT_REFINED: {
@@ -99,11 +102,13 @@ class ConversationStateManager:
                 'SAVE_DRAFT': ConversationState.READY_TO_SAVE,
                 'CONTINUE_WORKFLOW': ConversationState.READY_TO_SAVE,
                 'DRAFT_REPLY': ConversationState.DRAFT_CREATED,  # Start over
+                'EXTRACT_INFO': ConversationState.DRAFT_REFINED,  # Allow showing info without changing state
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,  # New email
             },
             ConversationState.READY_TO_SAVE: {
                 'SAVE_DRAFT': ConversationState.CONVERSATION_COMPLETE,
                 'REFINE_DRAFT': ConversationState.DRAFT_REFINED,  # More changes
+                'DRAFT_REPLY': ConversationState.DRAFT_CREATED,  # New draft
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,  # New email
             },
             ConversationState.CONVERSATION_COMPLETE: {
@@ -113,6 +118,9 @@ class ConversationStateManager:
             ConversationState.ERROR_RECOVERY: {
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,
                 'DRAFT_REPLY': ConversationState.DRAFT_CREATED,
+                'SAVE_DRAFT': ConversationState.CONVERSATION_COMPLETE,  # Allow saving from error recovery
+                'EXTRACT_INFO': ConversationState.INFO_EXTRACTED,  # Allow showing info from error recovery
+                'REFINE_DRAFT': ConversationState.DRAFT_REFINED,  # Allow refining from error recovery
                 'GENERAL_HELP': ConversationState.GREETING,
                 'CLARIFICATION_NEEDED': ConversationState.ERROR_RECOVERY,
             }
