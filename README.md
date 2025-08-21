@@ -40,7 +40,7 @@ The Email Assistant is an intelligent, conversational agent accessible via comma
    ```
 
 2. **Configure your settings:**
-   Edit `config.config` in the root directory:
+   Edit `src/assistant/config.config`:
    ```ini
    model_id = eu.anthropic.claude-3-7-sonnet-20250219-v1:0
    bucket_name = your-s3-bucket-name

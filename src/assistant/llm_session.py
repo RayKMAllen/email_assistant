@@ -11,6 +11,7 @@ import pprint
 from botocore.exceptions import ClientError
 import configparser
 import os
+from importlib.resources import files
 
 from assistant.utils import process_path_or_email, save_draft_to_file, save_draft_to_s3
 from assistant.prompts_params import (
@@ -21,14 +22,38 @@ from assistant.prompts_params import (
     TOP_P,
 )
 
-# Load configuration from config.config in the root directory
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "..", ".."))
-config_path = os.path.join(ROOT_DIR, "config.config")
-
-# Load config
+# Load configuration from config.config
 config = configparser.ConfigParser()
-config.read(config_path)
+
+# Try to load config from package resources first (for installed package)
+try:
+    # For installed package, try to find config.config in the assistant package directory
+    import assistant
+    package_dir = os.path.dirname(assistant.__file__)
+    
+    # Look for config.config in the package directory first
+    config_path = os.path.join(package_dir, "config.config")
+    if os.path.exists(config_path):
+        config.read(config_path)
+    else:
+        raise FileNotFoundError("Config not found in package directory")
+except (ImportError, FileNotFoundError, ModuleNotFoundError):
+    # Fallback to development directory structure
+    CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+    
+    # First try config.config in the same directory as this file (for development with config in assistant dir)
+    config_path = os.path.join(CURRENT_DIR, "config.config")
+    if os.path.exists(config_path):
+        config.read(config_path)
+    else:
+        # Try config.config in the root directory (original location)
+        ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "..", ".."))
+        config_path = os.path.join(ROOT_DIR, "config.config")
+        
+        if os.path.exists(config_path):
+            config.read(config_path)
+        else:
+            raise FileNotFoundError(f"Config file not found at {config_path}")
 
 # Access values from [DEFAULT]
 MODEL_ID = config["DEFAULT"]["model_id"]
