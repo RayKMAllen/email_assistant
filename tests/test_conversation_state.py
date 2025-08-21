@@ -168,7 +168,7 @@ class TestConversationStateManager:
         # From DRAFT_CREATED state
         manager.context.current_state = ConversationState.DRAFT_CREATED
         valid_intents = manager.get_valid_intents()
-        expected_intents = ['REFINE_DRAFT', 'SAVE_DRAFT', 'CONTINUE_WORKFLOW', 'DRAFT_REPLY', 'EXTRACT_INFO', 'LOAD_EMAIL']
+        expected_intents = ['REFINE_DRAFT', 'SAVE_DRAFT', 'CONTINUE_WORKFLOW', 'DECLINE_OFFER', 'DRAFT_REPLY', 'EXTRACT_INFO', 'LOAD_EMAIL']
         assert set(valid_intents) == set(expected_intents)
     
     def test_update_context(self):
@@ -302,6 +302,20 @@ class TestConversationStateManager:
         # Load new email (should work from any state)
         manager.transition_state('LOAD_EMAIL', success=True)
         assert manager.context.current_state == ConversationState.EMAIL_LOADED
+    
+    def test_ready_to_save_extract_info_transition(self):
+        """Test that EXTRACT_INFO transition works from READY_TO_SAVE state"""
+        manager = ConversationStateManager()
+        
+        # Set to READY_TO_SAVE state
+        manager.context.current_state = ConversationState.READY_TO_SAVE
+        
+        # Should be able to transition to INFO_EXTRACTED with EXTRACT_INFO intent
+        assert manager.can_transition('EXTRACT_INFO') is True
+        
+        new_state = manager.transition_state('EXTRACT_INFO', success=True)
+        assert new_state == ConversationState.INFO_EXTRACTED
+        assert manager.context.current_state == ConversationState.INFO_EXTRACTED
 
 
 @pytest.mark.parametrize("initial_state,intent,expected_state", [

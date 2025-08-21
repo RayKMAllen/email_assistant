@@ -105,6 +105,7 @@ def save_draft_to_s3(draft: str, bucket_name: str, filepath=None) -> None:
         bucket_name (str): The S3 bucket name.
         filepath (str, optional): The S3 object name (key) where the draft will be saved.
         If None, a filename based on the current date and time will be used.
+        If filepath is a directory (ends with /), a timestamped filename will be added.
     """
     print(f"Attempting to save draft to S3 bucket: {bucket_name}")
     
@@ -114,6 +115,16 @@ def save_draft_to_s3(draft: str, bucket_name: str, filepath=None) -> None:
     if filepath is None:
         filename = make_now_filename()
         filepath = os.path.join("drafts", filename).replace("\\", "/")  # Ensure forward slashes for S3
+    else:
+        # If filepath is provided, ensure it's properly formatted for S3
+        filepath = filepath.replace("\\", "/")  # Ensure forward slashes for S3
+        
+        # If filepath ends with / or is just a directory name, add a timestamped filename
+        if filepath.endswith("/") or ("." not in os.path.basename(filepath) and "/" not in filepath.rstrip("/")):
+            filename = make_now_filename()
+            if not filepath.endswith("/"):
+                filepath += "/"
+            filepath = filepath + filename
     
     print(f"S3 key will be: {filepath}")
 

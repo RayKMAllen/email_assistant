@@ -115,6 +115,7 @@ class ConversationStateManager:
                 'REFINE_DRAFT': ConversationState.DRAFT_REFINED,  # More changes
                 'DRAFT_REPLY': ConversationState.DRAFT_CREATED,  # New draft
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,  # New email
+                'EXTRACT_INFO': ConversationState.INFO_EXTRACTED,  # Allow info extraction for new emails
             },
             ConversationState.CONVERSATION_COMPLETE: {
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,  # New email

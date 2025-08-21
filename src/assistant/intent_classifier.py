@@ -444,6 +444,10 @@ class HybridIntentClassifier:
             r'path\s*:\s*([^\s]+)',
             r'save\s+to\s+([/\\][\w/\\.-]+)',  # Absolute paths starting with / or \
             r'save\s+to\s+([\w.-]+[/\\][\w/\\.-]+)',  # Relative paths with directory separators
+            r'(?:save.*(?:cloud|s3|aws).*)?in\s+dir(?:ectory)?\s+([^\s]+)',  # "in dir [directory]" or "in directory [directory]"
+            r'(?:save.*(?:cloud|s3|aws).*)?to\s+dir(?:ectory)?\s+([^\s]+)',  # "to dir [directory]" or "to directory [directory]"
+            r'save.*in\s+dir(?:ectory)?\s+([^\s]+)',  # "save in dir [directory]" - more general
+            r'save.*to\s+dir(?:ectory)?\s+([^\s]+)',  # "save to dir [directory]" - more general
         ]
         
         for pattern in filepath_patterns:
@@ -456,6 +460,12 @@ class HybridIntentClassifier:
                 # Skip if it's a cloud-related term
                 if filepath.lower() in cloud_terms:
                     continue
+                
+                # For directory patterns, ensure we return a directory path format
+                if 'dir' in pattern:
+                    # If it's just a directory name, format it as a directory path
+                    if not filepath.endswith('/') and '/' not in filepath and '\\' not in filepath:
+                        filepath = f"{filepath}/"
                     
                 return filepath
         
