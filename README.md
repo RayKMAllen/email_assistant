@@ -6,29 +6,28 @@ The Email Assistant is an intelligent, conversational agent accessible via comma
 
 ## 🌟 Key Features
 
-### 🤖 **True Conversational Interface**
-- **Natural Language Understanding**: Just type naturally - "Here's an email I need help with" instead of learning commands
-- **Context-Aware Responses**: Remembers your conversation and provides relevant suggestions
-- **Proactive Guidance**: Automatically suggests next steps and guides you through the workflow
-- **Intelligent Intent Recognition**: Understands what you want even with ambiguous requests
+### 🤖 **Conversational Interface**
+- **Natural Language Understanding**: Talk naturally instead of learning commands
+- **Context-Aware**: Remembers conversation and suggests next steps
+- **Intent Recognition**: Understands ambiguous requests and guides workflow
 
-### 📧 **Comprehensive Email Processing**
-- **Multi-Format Support**: Process emails from text, file paths, or PDF documents
-- **Smart Information Extraction**: Automatically extracts sender, receiver, subject, and key details
-- **Professional Reply Drafting**: Creates contextually appropriate responses
-- **Flexible Tone Control**: Adjust replies to be formal, casual, professional, or friendly
-- **Iterative Refinement**: Keep improving drafts until they're perfect
+### 📧 **Email Processing**
+- **Multi-Format Support**: Process text, files, or PDF documents
+- **Smart Extraction**: Auto-extracts sender, subject, and key details
+- **Professional Drafting**: Creates contextually appropriate responses
+- **Tone Control**: Adjust for formal, casual, professional, or friendly styles
+- **Iterative Refinement**: Keep improving drafts until perfect
 
-### 🔄 **Intelligent Workflow Management**
-- **State-Aware Processing**: Tracks where you are in the email workflow
-- **Seamless Transitions**: Smoothly moves from loading → extracting → drafting → refining → saving
-- **Error Recovery**: Gracefully handles issues and guides you back on track
-- **Multi-Email Support**: Process multiple emails in a single conversation
+### 🔄 **Workflow & Session Management**
+- **State Tracking**: Knows where you are in the email workflow
+- **Multi-Email Support**: Process multiple emails in one conversation
+- **Session History**: View and manage all processed emails with context
+- **Error Recovery**: Gracefully handles issues and guides back on track
 
 ### ☁️ **Cloud Integration**
-- **AWS Bedrock Integration**: Powered by Claude LLM for intelligent responses
-- **S3 Storage Support**: Save drafts to cloud storage or local files
-- **Secure Processing**: Your data is processed securely with AWS infrastructure
+- **AWS Bedrock**: Powered by Claude LLM for intelligent responses
+- **S3 Storage**: Save drafts to cloud or local files
+- **Secure Processing**: AWS infrastructure ensures data security
 
 ## 🚀 Quick Start
 
@@ -57,11 +56,6 @@ The Email Assistant is an intelligent, conversational agent accessible via comma
 **Start a conversation:**
 ```bash
 eassistant
-```
-
-**Quick single interactions:**
-```bash
-eassistant ask "Help me with this email"
 ```
 
 ## 💬 Conversational Examples
@@ -151,15 +145,8 @@ I can help you process emails, extract key information, and draft professional r
 
 ## 🛠️ Available Commands
 
-### Conversational Mode (Recommended)
+### Conversational Mode
 - **`eassistant`** - Start interactive conversation
-- **`eassistant chat`** - Alternative way to start conversation
-
-### Quick Commands
-- **`eassistant ask "message"`** - Send a single message
-- **`eassistant reset`** - Reset conversation and start fresh
-- **`eassistant status`** - Show current conversation status
-- **`eassistant help-commands`** - Show all available commands
 
 ### During Conversation
 - **`help`** - Show what the assistant can do
@@ -167,6 +154,11 @@ I can help you process emails, extract key information, and draft professional r
 - **`reset`** - Start a new conversation
 - **`clear`** - Clear the screen
 - **`exit`** - Leave the assistant
+
+### Session Management Commands
+- **`show history`** - View all processed emails in this conversation
+- **`show email [number]`** - View details of a specific email session
+- **`view session [number]`** - Access drafts from a previous email
 
 ## 🎯 Natural Language Patterns
 
@@ -202,6 +194,13 @@ The assistant understands many ways to express your needs:
 - "Keep this version"
 - "Save to cloud storage"
 
+### Session Management
+- "Show me the history"
+- "What emails have we processed?"
+- "Show email 2"
+- "View the draft from email 1"
+- "List all sessions"
+
 ## 📋 Requirements
 
 - **Python 3.8+**
@@ -226,13 +225,6 @@ See [`Architecture.md`](Architecture.md) for detailed technical information.
 2. Ensure access to AWS Bedrock service
 3. Set up S3 bucket for cloud storage (optional)
 
-### Model Configuration
-Edit `config.config`:
-```ini
-model_id = eu.anthropic.claude-3-7-sonnet-20250219-v1:0
-bucket_name = your-s3-bucket-name
-```
-
 ## 🧪 Testing
 
 Run the test suite:
@@ -240,44 +232,7 @@ Run the test suite:
 python -m pytest
 ```
 
-## 📁 Project Structure
-
-```
-email_assistant/
-├── src/
-│   ├── assistant/
-│   │   ├── conversational_agent.py    # Main conversational agent
-│   │   ├── intent_classifier.py       # Hybrid intent classification
-│   │   ├── conversation_state.py      # State management
-│   │   ├── response_generator.py      # Natural language responses
-│   │   ├── llm_session.py            # LLM integration
-│   │   ├── prompts_params.py         # Prompts and parameters
-│   │   └── utils.py                  # Utility functions
-│   └── cli/
-│       └── cli.py                    # Conversational CLI interface
-├── tests/                            # Test suite
-├── Architecture.md                   # Technical architecture
-├── config.config                     # Configuration file
-└── README.md                        # This file
-```
-
-## 🤝 Contributing
-
-Contributions are welcome! The conversational architecture is designed to be extensible:
-
-- **Add new intents** in [`intent_classifier.py`](src/assistant/intent_classifier.py)
-- **Extend conversation states** in [`conversation_state.py`](src/assistant/conversation_state.py)
-- **Improve response templates** in [`response_generator.py`](src/assistant/response_generator.py)
-- **Enhance email processing** in [`llm_session.py`](src/assistant/llm_session.py)
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
 ## 👨‍💻 Author
 
 **Raymond Allen** - [GitHub](https://github.com/RayKMAllen)
 
----
-
-**Transform your email workflow with intelligent conversation!** 🚀

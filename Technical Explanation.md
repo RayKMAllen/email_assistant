@@ -21,14 +21,29 @@ The Email Assistant is built as a sophisticated conversational agent that unders
 
 **Implementation:**
 - **Rule-based Classification**: Fast pattern matching for common, clear intents
-  - Uses regex patterns and keyword matching
-  - High confidence for unambiguous inputs
+  - Uses regex patterns and keyword matching in [`HybridIntentClassifier`](src/assistant/intent_classifier.py:24)
+  - High confidence for unambiguous inputs (confidence >= 0.8)
   - Zero latency and no additional LLM costs
+  - Context-aware adjustments based on conversation state
   
 - **LLM-based Classification**: Intelligent analysis for complex or ambiguous inputs
-  - Leverages Claude's natural language understanding
+  - Leverages Claude's natural language understanding via [`_classify_with_llm()`](src/assistant/intent_classifier.py:672)
   - Context-aware classification considering conversation history
   - Handles creative phrasings and implied meanings
+  - JSON-structured prompts for consistent parsing
+
+**Supported Intents:**
+- `LOAD_EMAIL`: Process email content or files
+- `DRAFT_REPLY`: Create email responses
+- `EXTRACT_INFO`: Get key information from emails
+- `REFINE_DRAFT`: Modify existing drafts
+- `SAVE_DRAFT`: Export drafts to files
+- `GENERAL_HELP`: Get assistance and information
+- `CONTINUE_WORKFLOW`: Proceed with suggested next steps
+- `DECLINE_OFFER`: Handle negative responses
+- `VIEW_SESSION_HISTORY`: Show all processed emails
+- `VIEW_SPECIFIC_SESSION`: Access specific email sessions
+- `CLARIFICATION_NEEDED`: Handle ambiguous requests
 
 **Technical Benefits:**
 - **Performance**: Rule-based matching provides instant responses for 70%+ of inputs
@@ -36,27 +51,40 @@ The Email Assistant is built as a sophisticated conversational agent that unders
 - **Cost Efficiency**: Minimizes LLM API calls while maintaining high accuracy
 - **Reliability**: Fallback mechanisms ensure robust operation
 
-### 2. Conversation State Management
+### 2. Conversation State Management & Session Handling
 
-**Design Decision:** Implement a finite state machine to track conversation flow and maintain context.
+**Design Decision:** Implement a finite state machine with comprehensive session management for multi-email processing.
 
 **State Architecture:**
 ```python
-GREETING → EMAIL_LOADED → INFO_EXTRACTED → DRAFT_CREATED → 
-DRAFT_REFINED → READY_TO_SAVE → CONVERSATION_COMPLETE
+GREETING → WAITING_FOR_EMAIL → EMAIL_LOADED → INFO_EXTRACTED →
+DRAFT_CREATED → DRAFT_REFINED → READY_TO_SAVE → CONVERSATION_COMPLETE
 ```
 
-**Technical Implementation:**
-- **State Transitions**: Validated transitions based on successful operations
+**Enhanced State Management:**
+- **State Transitions**: Validated transitions in [`ConversationStateManager`](src/assistant/conversation_state.py:181)
 - **Context Preservation**: Maintains email content, extracted information, and draft history
-- **Error Recovery**: Automatic transition to error recovery state with graceful handling
-- **Multi-Email Support**: Context reset capabilities for processing multiple emails
+- **Error Recovery**: Dedicated [`ERROR_RECOVERY`](src/assistant/conversation_state.py:22) state with graceful handling
+- **Session Archiving**: Automatic preservation of completed email sessions
+
+**Multi-Email Session Support:**
+- **Session Archiving**: [`EmailSession`](src/assistant/conversation_state.py:26) objects preserve complete email processing history
+- **Session Switching**: Access drafts and information from previous emails via session IDs
+- **Context Isolation**: Each email maintains separate context while preserving conversation flow
+- **Session History**: View and manage all processed emails with [`get_all_session_summaries()`](src/assistant/conversation_state.py:116)
+
+**Technical Implementation:**
+- **ConversationContext**: Enhanced context management with session history
+- **Memory Management**: Automatic cleanup with configurable history limits
+- **State Validation**: Comprehensive transition validation with error handling
+- **Session Identification**: Automatic session ID generation and management
 
 **Benefits:**
 - **Workflow Guidance**: Proactive suggestions based on current state
-- **Context Awareness**: Responses tailored to conversation progress
-- **Error Resilience**: Graceful recovery from failures
-- **User Experience**: Seamless flow without manual state management
+- **Context Awareness**: Responses tailored to conversation progress and session history
+- **Error Resilience**: Graceful recovery from failures with user guidance
+- **Multi-Email Workflow**: Seamless processing of multiple emails in one conversation
+- **Session Persistence**: Complete email processing history maintained throughout conversation
 
 ### 3. Natural Language Response Generation
 
@@ -101,40 +129,50 @@ RESPONSE_TOP_P = 0.4
 
 ### Natural Language Understanding Pipeline
 
-1. **Input Processing**: Raw user input received
-2. **Intent Classification**: Hybrid approach determines user intent
-3. **Parameter Extraction**: Relevant information extracted from input
-4. **Context Integration**: Current conversation state and history considered
-5. **Validation**: Intent validity checked against current state
-6. **Operation Execution**: Appropriate action performed
-7. **State Transition**: Conversation state updated based on success
-8. **Response Generation**: Natural language response with proactive guidance
+1. **Input Processing**: Raw user input received by [`ConversationalEmailAgent.process_user_input()`](src/assistant/conversational_agent.py:36)
+2. **Intent Classification**: Hybrid approach in [`HybridIntentClassifier.classify()`](src/assistant/intent_classifier.py:374) determines user intent
+3. **Parameter Extraction**: Relevant information extracted from input using regex patterns and LLM analysis
+4. **Context Integration**: Current conversation state and history considered via [`ConversationContext`](src/assistant/conversation_state.py:37)
+5. **Validation**: Intent validity checked against current state using transition rules
+6. **Operation Execution**: Appropriate action performed via [`_execute_intent()`](src/assistant/conversational_agent.py:112)
+7. **State Transition**: Conversation state updated based on success in [`ConversationStateManager.transition_state()`](src/assistant/conversation_state.py:275)
+8. **Response Generation**: Natural language response with proactive guidance from [`ConversationalResponseGenerator`](src/assistant/response_generator.py:12)
 
-### Context Maintenance Strategy
+### Enhanced Context Maintenance Strategy
 
 **Conversation Context:**
 - **Email Content**: Original email text and metadata
-- **Extracted Information**: Structured data from email analysis
+- **Extracted Information**: Structured data from email analysis via [`EmailLLMProcessor.extract_key_info()`](src/assistant/llm_session.py:106)
 - **Draft History**: All draft versions for iterative refinement
-- **User Preferences**: Learned preferences for tone and style
-- **Conversation History**: Full dialogue for context-aware responses
+- **Session History**: Complete [`EmailSession`](src/assistant/conversation_state.py:26) objects with full processing context
+- **Conversation History**: Full dialogue maintained with automatic memory management
+- **Currently Viewed Session**: Support for accessing previous email sessions
 
-**Memory Management:**
-- **Session-based**: Context maintained during active session
-- **Selective Retention**: Key information preserved, verbose history summarized
-- **Reset Capabilities**: Clean slate for new email processing workflows
+**Advanced Memory Management:**
+- **Session-based**: Context maintained during active session with automatic archiving
+- **Selective Retention**: Configurable history limits (200 messages max) with intelligent truncation
+- **Multi-Email Support**: Session isolation with cross-session access capabilities
+- **Reset Capabilities**: Clean slate for new email processing while preserving session history
+- **Session Switching**: Access to any previous email's drafts and information
 
-### Proactive Guidance System
+### Enhanced Proactive Guidance System
 
 **State-Based Suggestions:**
+- **GREETING**: "I can help you process emails, extract key information, and draft professional replies..."
 - **EMAIL_LOADED**: "Would you like me to extract key information and draft a reply?"
 - **INFO_EXTRACTED**: "Shall I draft a reply? I can adjust the tone as needed."
 - **DRAFT_CREATED**: "How does this look? I can refine it or save it for you."
+- **DRAFT_REFINED**: "How's this version? I can make additional changes if needed..."
+- **READY_TO_SAVE**: "Your draft is ready! I can save it to a local file or upload it to your S3 bucket."
+- **CONVERSATION_COMPLETE**: "Great! Is there anything else I can help you with?"
+- **ERROR_RECOVERY**: "Let's try that again. What would you like me to help you with?"
 
-**Adaptive Guidance:**
-- **User Behavior Learning**: Adapts suggestions based on user patterns
-- **Context Sensitivity**: Guidance varies based on email content and complexity
-- **Error Recovery**: Specific guidance when operations fail
+**Advanced Guidance Features:**
+- **Template Variations**: Multiple response templates to avoid repetitive interactions
+- **Context-Aware Suggestions**: Guidance varies based on email content, session history, and user patterns
+- **Error Recovery**: Specific guidance when operations fail with actionable next steps
+- **Session Management**: Proactive suggestions for viewing history and switching between sessions
+- **Compound Request Handling**: Intelligent detection and processing of multi-step requests
 
 ## Error Handling and Resilience
 
@@ -185,7 +223,7 @@ RESPONSE_TOP_P = 0.4
 - **Context Serialization**: Conversation state can be persisted if needed
 - **Multi-User Support**: Architecture supports concurrent users
 
-## Data Flow and Security
+## Data Flow
 
 ### Data Processing Pipeline
 
@@ -193,19 +231,6 @@ RESPONSE_TOP_P = 0.4
 User Input → Intent Classification → Context Integration → 
 Operation Execution → State Update → Response Generation → User Output
 ```
-
-### Security and Privacy
-
-**Data Handling:**
-- **Local Processing**: Email content processed locally when possible
-- **Secure API Calls**: AWS Bedrock provides encrypted communication
-- **No Persistent Storage**: Conversation data not permanently stored
-- **User Control**: Clear data handling and export options
-
-**Privacy Considerations:**
-- **Minimal Data Retention**: Only session-level context maintained
-- **User Consent**: Clear communication about data processing
-- **Secure Transmission**: All cloud communications encrypted
 
 ## Testing and Quality Assurance
 
@@ -223,45 +248,3 @@ Operation Execution → State Update → Response Generation → User Output
 - **Integration Tests**: End-to-end conversation flows
 - **User Acceptance Testing**: Real-world conversation scenarios
 - **Performance Testing**: Response time and resource usage
-
-## Future Extensibility
-
-### Modular Architecture Benefits
-
-**Component Independence:**
-- **Intent Classification**: Easy to add new intents or improve classification
-- **State Management**: Simple to extend with new conversation states
-- **Response Generation**: Straightforward to enhance response templates
-- **LLM Integration**: Can support multiple LLM providers
-
-**Extension Points:**
-- **New Capabilities**: Additional email processing features
-- **Multi-Modal Support**: Voice or GUI interfaces
-- **Integration APIs**: External system connectivity
-- **Advanced Analytics**: Conversation pattern analysis
-
-### Planned Enhancements
-
-**Short-term:**
-- **Learning Capabilities**: Adapt to user preferences over time
-- **Advanced Refinement**: More sophisticated draft improvement
-- **Batch Processing**: Handle multiple emails simultaneously
-
-**Long-term:**
-- **Multi-Language Support**: International email processing
-- **Voice Interface**: Speech-to-text conversation support
-- **Advanced Analytics**: Email pattern recognition and insights
-- **Team Collaboration**: Multi-user email processing workflows
-
-## Conclusion
-
-The conversational email assistant represents a sophisticated architectural approach that prioritizes user experience while maintaining technical robustness. The hybrid approach to intent classification, sophisticated state management, and proactive guidance system create a natural, intelligent interface that adapts to user needs and guides them through complex email processing workflows.
-
-The technical decisions made prioritize:
-- **User Experience**: Natural language interaction over command memorization
-- **Intelligence**: Context-aware responses and proactive guidance
-- **Reliability**: Robust error handling and graceful failure recovery
-- **Performance**: Efficient processing with minimal latency
-- **Extensibility**: Modular architecture supporting future enhancements
-
-This conversational architecture makes email processing feel like a natural dialogue, creating an accessible interface for users regardless of their technical expertise.
