@@ -11,7 +11,7 @@ import os
 from datetime import datetime
 
 from src.assistant.conversational_agent import ConversationalEmailAgent
-from src.assistant.conversation_state import ConversationState
+from assistant.conversation_state import ConversationState
 from src.cli.cli import cli
 from click.testing import CliRunner
 
@@ -225,7 +225,7 @@ Team Lead""")
         mock_processor.key_info = {'summary': 'Test email'}
         mock_processor.text = email
         
-        response1 = agent.process_user_input(f"Process: {email}")
+        response1 = agent.process_user_input(f"Here's an email I need help with: {email}")
         assert agent.state_manager.context.current_state == ConversationState.INFO_EXTRACTED
         
         # First draft attempt fails

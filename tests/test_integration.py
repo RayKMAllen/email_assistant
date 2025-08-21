@@ -10,7 +10,7 @@ import tempfile
 import os
 
 from src.assistant.conversational_agent import ConversationalEmailAgent
-from src.assistant.conversation_state import ConversationState
+from assistant.conversation_state import ConversationState
 from src.cli.cli import cli
 from click.testing import CliRunner
 
@@ -79,7 +79,7 @@ Project Manager"""
         response1 = agent.process_user_input(f"Here's an email I need help with: {sample_email}")
         
         assert "processed" in response1.lower() or "loaded" in response1.lower()
-        assert agent.state_manager.context.current_state.value == ConversationState.EMAIL_LOADED.value
+        assert agent.state_manager.context.current_state.value == ConversationState.INFO_EXTRACTED.value
         mock_processor.load_text.assert_called_once()
         mock_processor.extract_key_info.assert_called_once()
         
@@ -139,7 +139,7 @@ Project Manager"""
         mock_processor.text = sample_email
         
         response1 = agent.process_user_input(f"Process this email: {sample_email}")
-        assert agent.state_manager.context.current_state.value == ConversationState.EMAIL_LOADED.value
+        assert agent.state_manager.context.current_state.value == ConversationState.INFO_EXTRACTED.value
         
         # Step 2: Failed draft creation
         mock_processor.draft_reply = Mock(side_effect=Exception("LLM service unavailable"))
@@ -180,7 +180,7 @@ Project Manager"""
         mock_processor.text = email1
         
         response1 = agent.process_user_input(f"Process this email: {email1}")
-        assert agent.state_manager.context.current_state.value == ConversationState.EMAIL_LOADED.value
+        assert agent.state_manager.context.current_state.value == ConversationState.INFO_EXTRACTED.value
         
         # Process second email (should reset context)
         email2 = "Second email content"
@@ -188,7 +188,7 @@ Project Manager"""
         mock_processor.text = email2
         
         response2 = agent.process_user_input(f"Now process this email: {email2}")
-        assert agent.state_manager.context.current_state.value == ConversationState.EMAIL_LOADED.value
+        assert agent.state_manager.context.current_state.value == ConversationState.INFO_EXTRACTED.value
         
         # Verify both emails were processed
         assert mock_processor.load_text.call_count == 2
@@ -465,7 +465,7 @@ class TestConversationFlow:
         # Verify state
         assert agent.conversation_count == 1
         # After processing first email, the agent should be in EMAIL_LOADED state
-        assert agent.state_manager.context.current_state.value == ConversationState.EMAIL_LOADED.value
+        assert agent.state_manager.context.current_state.value == ConversationState.INFO_EXTRACTED.value
         
         # Reset conversation
         agent.reset_conversation()
@@ -483,7 +483,7 @@ class TestConversationFlow:
         agent.process_user_input("Process second email")
         
         assert agent.conversation_count == 1
-        assert agent.state_manager.context.current_state == ConversationState.EMAIL_LOADED
+        assert agent.state_manager.context.current_state == ConversationState.INFO_EXTRACTED
 
 
 @pytest.mark.slow

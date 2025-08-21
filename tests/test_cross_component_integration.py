@@ -11,7 +11,7 @@ import os
 from datetime import datetime
 
 from src.assistant.conversational_agent import ConversationalEmailAgent
-from src.assistant.conversation_state import ConversationState, ConversationStateManager
+from assistant.conversation_state import ConversationState, ConversationStateManager
 from src.assistant.intent_classifier import HybridIntentClassifier
 from src.assistant.response_generator import ConversationalResponseGenerator
 from src.cli.cli import cli
@@ -224,7 +224,7 @@ class TestIntentClassifierComponentIntegration:
     
     def test_intent_classifier_context_awareness(self):
         """Test intent classifier context awareness"""
-        from src.assistant.conversation_state import ConversationContext
+        from assistant.conversation_state import ConversationContext
         
         classifier = HybridIntentClassifier()
         context = ConversationContext()

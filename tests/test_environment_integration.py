@@ -12,7 +12,7 @@ from datetime import datetime
 import sys
 
 from src.assistant.conversational_agent import ConversationalEmailAgent
-from src.assistant.conversation_state import ConversationState
+from assistant.conversation_state import ConversationState
 from src.cli.cli import cli
 from click.testing import CliRunner
 

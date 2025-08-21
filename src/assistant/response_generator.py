@@ -62,7 +62,7 @@ class ConversationalResponseGenerator:
                 'success': [
                     "I've refined the draft based on your feedback:",
                     "Here's the updated version:",
-                    "I've made those changes to your draft:",
+                    "I've refined those changes to your draft:",
                 ]
             },
             'SAVE_DRAFT': {
@@ -106,24 +106,24 @@ class ConversationalResponseGenerator:
         """Define error response templates"""
         self.error_templates = {
             'LOAD_EMAIL': [
-                "I had trouble processing that email. Could you try pasting the email content again, or if it's a file, make sure the path is correct? I can handle text files and PDFs.",
-                "I couldn't load that email. Please check if the file path is correct or try pasting the email content directly.",
+                "I had trouble processing that email. Could you try pasting the email content again, or if it's a file, make sure the path is correct? I can help you with that.",
+                "I ran into a problem loading that email. Please check if the file path is correct or try pasting the email content directly, and I'll help you get it working.",
             ],
             'DRAFT_REPLY': [
-                "I wasn't able to draft a reply just now. This might be because the email content isn't loaded yet. Would you like to share the email first?",
-                "I need to have an email loaded before I can draft a reply. Could you share the email content with me?",
+                "I'm having trouble drafting a reply right now. This might be because the email content isn't loaded yet. Would you like me to help you share the email first?",
+                "I encountered an issue drafting a reply. I need to have an email loaded before I can draft a response. Could you help me by sharing the email content?",
             ],
             'EXTRACT_INFO': [
-                "I couldn't extract the key information from that email. The format might be unusual. Could you try sharing the email content again?",
-                "I had trouble analyzing that email. Could you try repasting the email content or check if it's formatted correctly?",
+                "I ran into a problem extracting the key information from that email. The format might be unusual. Could you try sharing the email content again so I can help you?",
+                "I had trouble analyzing that email. Could you try repasting the email content or check if it's formatted correctly? I'm here to help you get this working.",
             ],
             'SAVE_DRAFT': [
-                "I couldn't save the draft right now. Would you like me to try saving it to a different location?",
-                "There was an issue saving your draft. Let me try a different approach or you can copy the content manually.",
+                "I'm having trouble saving the draft right now. Would you like me to try saving it to a different location? I can help you find another approach.",
+                "There was an issue saving your draft. Let me try a different approach or you can copy the content manually. I'm here to help you resolve this problem.",
             ],
             'GENERAL': [
-                "I encountered an issue with that request. Let me know how you'd like to proceed, and I'll do my best to help!",
-                "Something went wrong there. Could you try rephrasing your request or let me know what you'd like to do?",
+                "I encountered an issue with that request. Let me know how you'd like to proceed, and I'll do my best to help you!",
+                "I ran into a problem there. Could you try rephrasing your request or let me know what you'd like to do? I'm here to help!",
             ]
         }
     
@@ -288,6 +288,26 @@ class ConversationalResponseGenerator:
                     summary = f"I've also extracted the key information. Here's a quick summary: {extracted_info['summary']}"
                 elif 'summary' in extracted_info:
                     summary = f"Here's a quick summary: {extracted_info['summary']}"
+            
+            # Check if this was a compound request that also created a draft
+            if result.get('compound_request') and 'draft' in result:
+                # Format as a draft response instead of just email loading
+                base_response = template.format(email_info=email_info, summary=summary)
+                draft_content = result['draft']
+                tone_info = ""
+                
+                if result.get('tone'):
+                    tone = result['tone']
+                    tone_templates = {
+                        'formal': " in a formal tone",
+                        'casual': " in a casual tone",
+                        'professional': " in a professional tone",
+                        'friendly': " in a friendly tone",
+                        'concise': " that's concise and to the point",
+                    }
+                    tone_info = tone_templates.get(tone, f" in a {tone} tone")
+                
+                return f"{base_response} I've also drafted a reply{tone_info}:\n\n{draft_content}"
         
         return template.format(email_info=email_info, summary=summary)
     

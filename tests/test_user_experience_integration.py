@@ -11,7 +11,7 @@ import os
 from datetime import datetime
 
 from src.assistant.conversational_agent import ConversationalEmailAgent
-from src.assistant.conversation_state import ConversationState
+from assistant.conversation_state import ConversationState
 from src.cli.cli import cli
 from click.testing import CliRunner
 
@@ -482,6 +482,10 @@ class TestCLIUserExperience:
 
 class TestMultiModalUserExperience:
     """Test multi-modal user experience (CLI + conversational)"""
+    
+    @pytest.fixture
+    def runner(self):
+        return CliRunner()
     
     @patch('src.cli.cli.get_agent')
     def test_cli_conversational_mode_experience(self, mock_get_agent, runner):

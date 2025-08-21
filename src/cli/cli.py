@@ -44,13 +44,17 @@ def ask(message):
         return
     
     message_text = " ".join(message)
-    agent = get_agent()
     
     try:
+        agent = get_agent()
         response = agent.process_user_input(message_text)
         click.echo(response)
+    except KeyboardInterrupt:
+        click.echo("👋 Goodbye!")
+        # Handle keyboard interrupt gracefully
     except Exception as e:
         click.echo(f"⚠️ Error: {e}")
+        # Don't re-raise the exception to avoid exit code 1
 
 
 @cli.command()

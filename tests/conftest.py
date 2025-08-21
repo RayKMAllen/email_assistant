@@ -7,7 +7,7 @@ import tempfile
 from unittest.mock import Mock, patch, MagicMock
 import json
 
-from src.assistant.conversation_state import ConversationContext, ConversationState
+from assistant.conversation_state import ConversationContext, ConversationState
 
 
 @pytest.fixture

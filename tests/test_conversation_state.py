@@ -6,7 +6,7 @@ import pytest
 from datetime import datetime
 from unittest.mock import patch
 
-from src.assistant.conversation_state import (
+from assistant.conversation_state import (
     ConversationState,
     ConversationContext,
     ConversationStateManager
@@ -35,7 +35,7 @@ class TestConversationContext:
         """Test adding messages to conversation history"""
         context = ConversationContext()
         
-        with patch('src.assistant.conversation_state.datetime') as mock_datetime:
+        with patch('assistant.conversation_state.datetime') as mock_datetime:
             mock_datetime.now.return_value.isoformat.return_value = "2023-01-01T12:00:00"
             
             context.add_to_history("user", "Hello")
@@ -162,13 +162,13 @@ class TestConversationStateManager:
         
         # From GREETING state
         valid_intents = manager.get_valid_intents()
-        expected_intents = ['LOAD_EMAIL', 'EXTRACT_INFO', 'GENERAL_HELP', 'CLARIFICATION_NEEDED']
+        expected_intents = ['LOAD_EMAIL', 'EXTRACT_INFO', 'DRAFT_REPLY', 'GENERAL_HELP', 'CLARIFICATION_NEEDED', 'VIEW_SESSION_HISTORY', 'VIEW_SPECIFIC_SESSION']
         assert set(valid_intents) == set(expected_intents)
         
         # From DRAFT_CREATED state
         manager.context.current_state = ConversationState.DRAFT_CREATED
         valid_intents = manager.get_valid_intents()
-        expected_intents = ['REFINE_DRAFT', 'SAVE_DRAFT', 'CONTINUE_WORKFLOW', 'DECLINE_OFFER', 'DRAFT_REPLY', 'EXTRACT_INFO', 'LOAD_EMAIL']
+        expected_intents = ['REFINE_DRAFT', 'SAVE_DRAFT', 'CONTINUE_WORKFLOW', 'DECLINE_OFFER', 'DRAFT_REPLY', 'EXTRACT_INFO', 'LOAD_EMAIL', 'VIEW_SESSION_HISTORY', 'VIEW_SPECIFIC_SESSION']
         assert set(valid_intents) == set(expected_intents)
     
     def test_update_context(self):

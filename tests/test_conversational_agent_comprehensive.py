@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import Mock, patch
 
 from src.assistant.conversational_agent import ConversationalEmailAgent
-from src.assistant.conversation_state import ConversationState
+from assistant.conversation_state import ConversationState
 from src.assistant.intent_classifier import IntentResult
 
 
@@ -110,7 +110,7 @@ class TestConversationalEmailAgent:
         
         assert result == "Could you be more specific?"
         agent.response_generator.generate_clarification_response.assert_called_once_with(
-            user_input, {'state': 'greeting'}
+            user_input, {'state': 'greeting', 'original_input': user_input}
         )
         # Should not execute intent or transition state for clarification
         # Check that _execute_intent was not called (since we expect clarification)
@@ -257,16 +257,20 @@ class TestConversationalEmailAgent:
         """Test successful info extraction"""
         agent.email_processor.text = "email content"
         agent.email_processor.key_info = None
-        agent.email_processor.extract_key_info = Mock()
-        agent.email_processor.key_info = {'sender': 'test@example.com'}
         agent.state_manager.update_context = Mock()
+        
+        # Mock extract_key_info to set key_info when called
+        def mock_extract():
+            agent.email_processor.key_info = {'sender': 'test@example.com'}
+        
+        agent.email_processor.extract_key_info = Mock(side_effect=mock_extract)
         
         result, success = agent._handle_extract_info()
         
         assert success is True
         assert result == {'sender': 'test@example.com'}
-        # The extract_key_info should have been called during the load_email operation
-        # But since we're mocking the processor, let's verify the state instead
+        # Verify that extract_key_info was called
+        agent.email_processor.extract_key_info.assert_called_once()
         # Verify that update_context was called with the extracted info
         agent.state_manager.update_context.assert_called_with(extracted_info={'sender': 'test@example.com'})
     
@@ -288,7 +292,10 @@ class TestConversationalEmailAgent:
         result, success = agent._handle_extract_info()
         
         assert success is True
-        assert result == {'sender': 'existing@example.com'}
+        assert result == {
+            'extracted_info': {'sender': 'existing@example.com'},
+            'already_extracted': True
+        }
         # Should not call extract_key_info again
         assert not hasattr(agent.email_processor, 'extract_key_info') or not agent.email_processor.extract_key_info.called
     

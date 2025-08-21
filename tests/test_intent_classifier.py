@@ -10,7 +10,7 @@ from src.assistant.intent_classifier import (
     HybridIntentClassifier,
     IntentResult
 )
-from src.assistant.conversation_state import (
+from assistant.conversation_state import (
     ConversationContext,
     ConversationState
 )

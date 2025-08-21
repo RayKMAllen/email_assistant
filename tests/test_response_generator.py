@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import patch
 
 from src.assistant.response_generator import ConversationalResponseGenerator
-from src.assistant.conversation_state import (
+from assistant.conversation_state import (
     ConversationState,
     ConversationStateManager
 )
@@ -265,7 +265,7 @@ class TestConversationalResponseGenerator:
         """Test proactive guidance for greeting state"""
         generator.state_manager.context.current_state = ConversationState.GREETING
         
-        with patch('random.choice') as mock_choice:
+        with patch('src.assistant.response_generator.random.choice') as mock_choice:
             mock_choice.return_value = "Test guidance message"
             
             result = generator._generate_proactive_guidance()

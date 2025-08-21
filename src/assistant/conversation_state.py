@@ -57,13 +57,24 @@ class ConversationContext:
     pending_clarification: Optional[str] = None
     session_start_time: datetime = field(default_factory=datetime.now)
     
+    @property
+    def archived_sessions(self) -> List[EmailSession]:
+        """Alias for email_sessions for backward compatibility"""
+        return self.email_sessions
+    
     def add_to_history(self, role: str, content: str):
-        """Add a message to the conversation history"""
+        """Add a message to the conversation history with memory management"""
         self.conversation_history.append({
             "role": role,
             "content": content,
             "timestamp": datetime.now().isoformat()
         })
+        
+        # Manage memory by keeping only recent history
+        max_history_length = 200  # Keep last 200 messages (100 exchanges)
+        if len(self.conversation_history) > max_history_length:
+            # Keep the most recent messages
+            self.conversation_history = self.conversation_history[-max_history_length:]
     
     def get_recent_history(self, limit: int = 5) -> List[Dict[str, str]]:
         """Get recent conversation history"""
@@ -86,6 +97,9 @@ class ConversationContext:
                 email_id=f"email_{len(self.email_sessions) + 1}"
             )
             self.email_sessions.append(session)
+            
+            # Reset current draft after archiving to prepare for new session
+            self.current_draft = None
     
     def reset_email_context(self):
         """Reset email-specific context for processing a new email, preserving session history"""
@@ -177,6 +191,7 @@ class ConversationStateManager:
             ConversationState.GREETING: {
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,
                 'EXTRACT_INFO': ConversationState.INFO_EXTRACTED,  # Allow direct transition for auto-extraction
+                'DRAFT_REPLY': ConversationState.DRAFT_CREATED,  # Allow direct transition for compound requests
                 'GENERAL_HELP': ConversationState.GREETING,
                 'CLARIFICATION_NEEDED': ConversationState.GREETING,
                 'VIEW_SESSION_HISTORY': ConversationState.GREETING,  # Stay in same state
