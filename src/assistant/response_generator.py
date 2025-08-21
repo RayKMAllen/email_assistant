@@ -85,6 +85,20 @@ class ConversationalResponseGenerator:
                     "That's fine! Let me know what else I can do for you.",
                     "Understood! What would you prefer to do next?",
                 ]
+            },
+            'VIEW_SESSION_HISTORY': {
+                'success': [
+                    "Here's your session history:",
+                    "I've processed these emails in our conversation:",
+                    "Here are all the emails we've worked on:",
+                ]
+            },
+            'VIEW_SPECIFIC_SESSION': {
+                'success': [
+                    "Here are the details for {session_id}:",
+                    "Here's what we did with {session_id}:",
+                    "Details for {session_id}:",
+                ]
             }
         }
     
@@ -221,6 +235,10 @@ class ConversationalResponseGenerator:
             return self._format_help_response(template)
         elif intent == 'DECLINE_OFFER':
             return self._format_decline_response(template, operation_result)
+        elif intent == 'VIEW_SESSION_HISTORY':
+            return self._format_session_history_response(template, operation_result)
+        elif intent == 'VIEW_SPECIFIC_SESSION':
+            return self._format_specific_session_response(template, operation_result)
         else:
             return template
     
@@ -348,6 +366,93 @@ class ConversationalResponseGenerator:
             return template
         else:
             return template
+    
+    def _format_session_history_response(self, template: str, result: Dict[str, Any]) -> str:
+        """Format response for session history"""
+        if not isinstance(result, dict) or 'session_summaries' not in result:
+            return template + "\n\nNo sessions found."
+        
+        sessions = result['session_summaries']
+        if not sessions:
+            return template + "\n\nNo emails have been processed in this conversation yet."
+        
+        response = template + "\n"
+        
+        for i, session in enumerate(sessions, 1):
+            session_line = f"\n**{i}. "
+            
+            if session.get('is_current'):
+                session_line += "Current Email"
+            else:
+                session_line += f"Email {i}"
+            
+            if 'subject' in session:
+                session_line += f"** - {session['subject']}"
+            else:
+                session_line += "**"
+            
+            if 'sender' in session:
+                session_line += f" (from {session['sender']})"
+            
+            session_line += f"\n  - Processed: {session['timestamp'][:19].replace('T', ' ')}"
+            session_line += f"\n  - Drafts created: {session['draft_count']}"
+            
+            if session.get('has_extracted_info'):
+                session_line += "\n  - Key information extracted ✓"
+            
+            if session.get('has_current_draft'):
+                session_line += "\n  - Has current draft ✓"
+            
+            response += session_line
+        
+        response += f"\n\nTotal sessions: {result['total_sessions']}"
+        response += "\n\nYou can view details of any session by saying 'show email [number]' or 'view session [number]'."
+        
+        return response
+    
+    def _format_specific_session_response(self, template: str, result: Dict[str, Any]) -> str:
+        """Format response for specific session details"""
+        if not isinstance(result, dict) or 'session' not in result:
+            return template + "\n\nSession not found."
+        
+        session = result['session']
+        session_id = session.get('session_id', 'Unknown')
+        
+        response = template.format(session_id=session_id) + "\n"
+        
+        # Add timestamp
+        if 'timestamp' in session:
+            response += f"\n**Processed:** {session['timestamp'][:19].replace('T', ' ')}"
+        
+        # Add extracted info if available
+        if session.get('extracted_info'):
+            info = session['extracted_info']
+            response += "\n\n**Key Information:**"
+            
+            if 'sender_name' in info:
+                response += f"\n- **From:** {info['sender_name']}"
+            if 'subject' in info:
+                response += f"\n- **Subject:** {info['subject']}"
+            if 'summary' in info:
+                response += f"\n- **Summary:** {info['summary']}"
+        
+        # Add draft information
+        draft_count = session.get('draft_count', 0)
+        if draft_count > 0:
+            response += f"\n\n**Drafts Created:** {draft_count}"
+            
+            if session.get('current_draft'):
+                response += "\n\n**Current Draft:**\n"
+                response += session['current_draft']
+        
+        # Add email content (truncated)
+        if session.get('email_content'):
+            email_preview = session['email_content'][:200]
+            if len(session['email_content']) > 200:
+                email_preview += "..."
+            response += f"\n\n**Email Content (preview):**\n{email_preview}"
+        
+        return response
     
     def _generate_proactive_guidance(self) -> str:
         """Generate proactive guidance based on current conversation state"""

@@ -23,13 +23,31 @@ class ConversationState(Enum):
 
 
 @dataclass
+class EmailSession:
+    """Represents a complete email processing session"""
+    email_content: str
+    extracted_info: Optional[Dict[str, Any]] = None
+    drafts: List[str] = field(default_factory=list)
+    current_draft: Optional[str] = None
+    timestamp: datetime = field(default_factory=datetime.now)
+    email_id: Optional[str] = None  # For identification
+
+
+@dataclass
 class ConversationContext:
     """Maintains the context and state of the conversation"""
     current_state: ConversationState = ConversationState.GREETING
+    
+    # Current email context (for active processing)
     email_content: Optional[str] = None
     extracted_info: Optional[Dict[str, Any]] = None
     current_draft: Optional[str] = None
     draft_history: List[str] = field(default_factory=list)
+    
+    # Session history (preserves all emails and their data)
+    email_sessions: List[EmailSession] = field(default_factory=list)
+    
+    # General conversation context
     user_preferences: Dict[str, Any] = field(default_factory=dict)
     conversation_history: List[Dict[str, str]] = field(default_factory=list)
     last_intent: Optional[str] = None
@@ -48,13 +66,91 @@ class ConversationContext:
         """Get recent conversation history"""
         return self.conversation_history[-limit:]
     
+    def archive_current_email_session(self):
+        """Archive the current email session to preserve it in history"""
+        if self.email_content:
+            # Create a session record for the current email
+            session = EmailSession(
+                email_content=self.email_content,
+                extracted_info=self.extracted_info.copy() if self.extracted_info else None,
+                drafts=self.draft_history.copy(),
+                current_draft=self.current_draft,
+                timestamp=datetime.now(),
+                email_id=f"email_{len(self.email_sessions) + 1}"
+            )
+            self.email_sessions.append(session)
+    
     def reset_email_context(self):
-        """Reset email-specific context for processing a new email"""
+        """Reset email-specific context for processing a new email, preserving session history"""
+        # Archive current session before resetting
+        self.archive_current_email_session()
+        
+        # Reset current email context
         self.email_content = None
         self.extracted_info = None
         self.current_draft = None
         self.draft_history = []
         self.current_state = ConversationState.WAITING_FOR_EMAIL
+    
+    def get_all_session_summaries(self) -> List[Dict[str, Any]]:
+        """Get summaries of all email sessions in this conversation"""
+        summaries = []
+        for i, session in enumerate(self.email_sessions):
+            summary = {
+                'session_id': session.email_id or f"email_{i+1}",
+                'timestamp': session.timestamp.isoformat(),
+                'has_extracted_info': session.extracted_info is not None,
+                'draft_count': len(session.drafts),
+                'has_current_draft': session.current_draft is not None,
+            }
+            
+            # Add email subject if available in extracted info
+            if session.extracted_info and 'subject' in session.extracted_info:
+                summary['subject'] = session.extracted_info['subject']
+            
+            # Add sender info if available
+            if session.extracted_info and 'sender_name' in session.extracted_info:
+                summary['sender'] = session.extracted_info['sender_name']
+                
+            summaries.append(summary)
+        
+        # Include current session if active
+        if self.email_content:
+            current_summary = {
+                'session_id': 'current',
+                'timestamp': datetime.now().isoformat(),
+                'has_extracted_info': self.extracted_info is not None,
+                'draft_count': len(self.draft_history),
+                'has_current_draft': self.current_draft is not None,
+                'is_current': True
+            }
+            
+            if self.extracted_info and 'subject' in self.extracted_info:
+                current_summary['subject'] = self.extracted_info['subject']
+            if self.extracted_info and 'sender_name' in self.extracted_info:
+                current_summary['sender'] = self.extracted_info['sender_name']
+                
+            summaries.append(current_summary)
+        
+        return summaries
+    
+    def get_session_by_id(self, session_id: str) -> Optional[EmailSession]:
+        """Get a specific email session by ID"""
+        if session_id == 'current':
+            if self.email_content:
+                return EmailSession(
+                    email_content=self.email_content,
+                    extracted_info=self.extracted_info,
+                    drafts=self.draft_history.copy(),
+                    current_draft=self.current_draft,
+                    email_id='current'
+                )
+            return None
+        
+        for session in self.email_sessions:
+            if session.email_id == session_id:
+                return session
+        return None
 
 
 class ConversationStateManager:
@@ -72,10 +168,14 @@ class ConversationStateManager:
                 'EXTRACT_INFO': ConversationState.INFO_EXTRACTED,  # Allow direct transition for auto-extraction
                 'GENERAL_HELP': ConversationState.GREETING,
                 'CLARIFICATION_NEEDED': ConversationState.GREETING,
+                'VIEW_SESSION_HISTORY': ConversationState.GREETING,  # Stay in same state
+                'VIEW_SPECIFIC_SESSION': ConversationState.GREETING,  # Stay in same state
             },
             ConversationState.WAITING_FOR_EMAIL: {
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,
                 'GENERAL_HELP': ConversationState.WAITING_FOR_EMAIL,
+                'VIEW_SESSION_HISTORY': ConversationState.WAITING_FOR_EMAIL,  # Stay in same state
+                'VIEW_SPECIFIC_SESSION': ConversationState.WAITING_FOR_EMAIL,  # Stay in same state
             },
             ConversationState.EMAIL_LOADED: {
                 'EXTRACT_INFO': ConversationState.INFO_EXTRACTED,
@@ -83,6 +183,8 @@ class ConversationStateManager:
                 'CONTINUE_WORKFLOW': ConversationState.INFO_EXTRACTED,
                 'DECLINE_OFFER': ConversationState.EMAIL_LOADED,  # Stay in same state
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,  # New email
+                'VIEW_SESSION_HISTORY': ConversationState.EMAIL_LOADED,  # Stay in same state
+                'VIEW_SPECIFIC_SESSION': ConversationState.EMAIL_LOADED,  # Stay in same state
             },
             ConversationState.INFO_EXTRACTED: {
                 'DRAFT_REPLY': ConversationState.DRAFT_CREATED,
@@ -91,6 +193,8 @@ class ConversationStateManager:
                 'EXTRACT_INFO': ConversationState.INFO_EXTRACTED,  # Allow re-showing info
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,  # New email
                 'CLARIFICATION_NEEDED': ConversationState.INFO_EXTRACTED,  # Handle clarification requests
+                'VIEW_SESSION_HISTORY': ConversationState.INFO_EXTRACTED,  # Stay in same state
+                'VIEW_SPECIFIC_SESSION': ConversationState.INFO_EXTRACTED,  # Stay in same state
             },
             ConversationState.DRAFT_CREATED: {
                 'REFINE_DRAFT': ConversationState.DRAFT_REFINED,
@@ -98,8 +202,10 @@ class ConversationStateManager:
                 'CONTINUE_WORKFLOW': ConversationState.READY_TO_SAVE,
                 'DECLINE_OFFER': ConversationState.DRAFT_CREATED,  # Stay in same state
                 'DRAFT_REPLY': ConversationState.DRAFT_CREATED,  # New draft
-                'EXTRACT_INFO': ConversationState.DRAFT_CREATED,  # Allow showing info without changing state
+                'EXTRACT_INFO': ConversationState.INFO_EXTRACTED,  # Allow transitioning to INFO_EXTRACTED for new emails
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,  # New email
+                'VIEW_SESSION_HISTORY': ConversationState.DRAFT_CREATED,  # Stay in same state
+                'VIEW_SPECIFIC_SESSION': ConversationState.DRAFT_CREATED,  # Stay in same state
             },
             ConversationState.DRAFT_REFINED: {
                 'REFINE_DRAFT': ConversationState.DRAFT_REFINED,  # Multiple refinements
@@ -107,8 +213,10 @@ class ConversationStateManager:
                 'CONTINUE_WORKFLOW': ConversationState.READY_TO_SAVE,
                 'DECLINE_OFFER': ConversationState.DRAFT_REFINED,  # Stay in same state
                 'DRAFT_REPLY': ConversationState.DRAFT_CREATED,  # Start over
-                'EXTRACT_INFO': ConversationState.DRAFT_REFINED,  # Allow showing info without changing state
+                'EXTRACT_INFO': ConversationState.INFO_EXTRACTED,  # Allow transitioning to INFO_EXTRACTED for new emails
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,  # New email
+                'VIEW_SESSION_HISTORY': ConversationState.DRAFT_REFINED,  # Stay in same state
+                'VIEW_SPECIFIC_SESSION': ConversationState.DRAFT_REFINED,  # Stay in same state
             },
             ConversationState.READY_TO_SAVE: {
                 'SAVE_DRAFT': ConversationState.CONVERSATION_COMPLETE,
@@ -116,10 +224,14 @@ class ConversationStateManager:
                 'DRAFT_REPLY': ConversationState.DRAFT_CREATED,  # New draft
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,  # New email
                 'EXTRACT_INFO': ConversationState.INFO_EXTRACTED,  # Allow info extraction for new emails
+                'VIEW_SESSION_HISTORY': ConversationState.READY_TO_SAVE,  # Stay in same state
+                'VIEW_SPECIFIC_SESSION': ConversationState.READY_TO_SAVE,  # Stay in same state
             },
             ConversationState.CONVERSATION_COMPLETE: {
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,  # New email
                 'GENERAL_HELP': ConversationState.GREETING,
+                'VIEW_SESSION_HISTORY': ConversationState.CONVERSATION_COMPLETE,  # Stay in same state
+                'VIEW_SPECIFIC_SESSION': ConversationState.CONVERSATION_COMPLETE,  # Stay in same state
             },
             ConversationState.ERROR_RECOVERY: {
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,
@@ -129,6 +241,8 @@ class ConversationStateManager:
                 'REFINE_DRAFT': ConversationState.DRAFT_REFINED,  # Allow refining from error recovery
                 'GENERAL_HELP': ConversationState.GREETING,
                 'CLARIFICATION_NEEDED': ConversationState.ERROR_RECOVERY,
+                'VIEW_SESSION_HISTORY': ConversationState.ERROR_RECOVERY,  # Stay in same state
+                'VIEW_SPECIFIC_SESSION': ConversationState.ERROR_RECOVERY,  # Stay in same state
             }
         }
     

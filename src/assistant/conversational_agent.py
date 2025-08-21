@@ -140,6 +140,12 @@ class ConversationalEmailAgent:
             elif intent == 'DECLINE_OFFER':
                 return self._handle_decline_offer()
             
+            elif intent == 'VIEW_SESSION_HISTORY':
+                return self._handle_view_session_history()
+            
+            elif intent == 'VIEW_SPECIFIC_SESSION':
+                return self._handle_view_specific_session(parameters)
+            
             else:
                 return f"I'm not sure how to handle that request: {intent}", False
                 
@@ -149,6 +155,10 @@ class ConversationalEmailAgent:
     def _handle_load_email(self, parameters: Dict[str, Any], user_input: str) -> Tuple[Dict[str, Any], bool]:
         """Handle loading and processing an email"""
         try:
+            # Archive current session before loading new email (if there's an active session)
+            if self.state_manager.context.email_content:
+                self.state_manager.context.archive_current_email_session()
+            
             # Extract email content from parameters or user input
             email_content = parameters.get('email_content')
             if not email_content:
@@ -315,6 +325,45 @@ class ConversationalEmailAgent:
             return "offer_declined_save", True
         else:
             return "offer_declined_general", True
+    
+    def _handle_view_session_history(self) -> Tuple[Dict[str, Any], bool]:
+        """Handle requests to view session history"""
+        try:
+            session_summaries = self.state_manager.context.get_all_session_summaries()
+            
+            return {
+                'session_summaries': session_summaries,
+                'total_sessions': len(session_summaries)
+            }, True
+            
+        except Exception as e:
+            return {'error': str(e)}, False
+    
+    def _handle_view_specific_session(self, parameters: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
+        """Handle requests to view a specific session"""
+        try:
+            session_id = parameters.get('session_id')
+            if not session_id:
+                return {'error': 'No session ID specified'}, False
+            
+            session = self.state_manager.context.get_session_by_id(session_id)
+            if not session:
+                return {'error': f'Session {session_id} not found'}, False
+            
+            return {
+                'session': {
+                    'session_id': session.email_id,
+                    'timestamp': session.timestamp.isoformat(),
+                    'email_content': session.email_content,
+                    'extracted_info': session.extracted_info,
+                    'drafts': session.drafts,
+                    'current_draft': session.current_draft,
+                    'draft_count': len(session.drafts)
+                }
+            }, True
+            
+        except Exception as e:
+            return {'error': str(e)}, False
     
     def _handle_unexpected_error(self, error: Exception, user_input: str) -> str:
         """Handle unexpected errors gracefully"""

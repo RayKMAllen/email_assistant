@@ -185,6 +185,36 @@ class HybridIntentClassifier:
                     r'^pass[!.]*$',
                 ],
                 'confidence': 0.7  # Lower confidence as context-dependent
+            },
+            'VIEW_SESSION_HISTORY': {
+                'patterns': [
+                    r'show.*history',
+                    r'view.*history',
+                    r'list.*emails',
+                    r'show.*sessions',
+                    r'view.*sessions',
+                    r'what.*emails.*processed',
+                    r'show.*previous.*emails',
+                    r'list.*previous.*emails',
+                    r'session.*history',
+                    r'email.*history',
+                    r'show.*all.*emails',
+                    r'view.*all.*emails',
+                ],
+                'confidence': 0.85
+            },
+            'VIEW_SPECIFIC_SESSION': {
+                'patterns': [
+                    r'show.*email.*\d+',
+                    r'view.*email.*\d+',
+                    r'show.*session.*\d+',
+                    r'view.*session.*\d+',
+                    r'show.*draft.*from.*email.*\d+',
+                    r'view.*draft.*from.*email.*\d+',
+                    r'show.*info.*from.*email.*\d+',
+                    r'view.*info.*from.*email.*\d+',
+                ],
+                'confidence': 0.9
             }
         }
     
@@ -295,7 +325,8 @@ class HybridIntentClassifier:
                     'tone': self._extract_tone(user_input_lower),
                     'refinement_instructions': self._extract_refinement_instructions(user_input),  # Use original case
                     'cloud': self._extract_cloud_preference(user_input_lower),
-                    'filepath': self._extract_filepath(user_input_lower)
+                    'filepath': self._extract_filepath(user_input_lower),
+                    'session_id': self._extract_session_id(user_input)
                 })
         
         return IntentResult(
@@ -391,6 +422,23 @@ class HybridIntentClassifier:
         for tone, pattern in tone_patterns.items():
             if re.search(pattern, user_input):
                 return tone
+        
+        return None
+    
+    def _extract_session_id(self, user_input: str) -> Optional[str]:
+        """Extract session ID from user input"""
+        # Look for patterns like "email 1", "session 2", etc.
+        session_patterns = [
+            r'(?:email|session)\s+(\d+)',
+            r'(?:email|session)\s+#(\d+)',
+            r'#(\d+)',
+        ]
+        
+        for pattern in session_patterns:
+            match = re.search(pattern, user_input, re.IGNORECASE)
+            if match:
+                session_num = match.group(1)
+                return f"email_{session_num}"
         
         return None
     
@@ -527,7 +575,8 @@ class HybridIntentClassifier:
         """Create prompt for LLM intent classification"""
         valid_intents = [
             'LOAD_EMAIL', 'DRAFT_REPLY', 'EXTRACT_INFO', 'REFINE_DRAFT',
-            'SAVE_DRAFT', 'GENERAL_HELP', 'CONTINUE_WORKFLOW', 'DECLINE_OFFER', 'CLARIFICATION_NEEDED'
+            'SAVE_DRAFT', 'GENERAL_HELP', 'CONTINUE_WORKFLOW', 'DECLINE_OFFER',
+            'VIEW_SESSION_HISTORY', 'VIEW_SPECIFIC_SESSION', 'CLARIFICATION_NEEDED'
         ]
         
         prompt = f"""
