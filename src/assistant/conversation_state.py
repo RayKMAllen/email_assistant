@@ -90,6 +90,7 @@ class ConversationStateManager:
                 'DECLINE_OFFER': ConversationState.INFO_EXTRACTED,  # Stay in same state
                 'EXTRACT_INFO': ConversationState.INFO_EXTRACTED,  # Allow re-showing info
                 'LOAD_EMAIL': ConversationState.EMAIL_LOADED,  # New email
+                'CLARIFICATION_NEEDED': ConversationState.INFO_EXTRACTED,  # Handle clarification requests
             },
             ConversationState.DRAFT_CREATED: {
                 'REFINE_DRAFT': ConversationState.DRAFT_REFINED,

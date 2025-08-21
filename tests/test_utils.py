@@ -223,13 +223,11 @@ class TestSaveDraftToFile:
         assert f"Saving draft to {expected_file}..." in captured.out
     
     def test_save_draft_create_directories(self, tmp_path, capsys):
-        """Test that save_draft_to_file handles nested paths when directories exist"""
+        """Test that save_draft_to_file creates directories for custom paths"""
         draft_content = "Draft with nested path"
         nested_path = tmp_path / "level1" / "level2" / "draft.txt"
         
-        # Create the directories first since save_draft_to_file doesn't create them for custom paths
-        nested_path.parent.mkdir(parents=True, exist_ok=True)
-        
+        # Don't create directories - save_draft_to_file should create them
         save_draft_to_file(draft_content, str(nested_path))
         
         # Directory should exist and file should exist
@@ -237,6 +235,24 @@ class TestSaveDraftToFile:
         assert nested_path.exists()
         assert nested_path.read_text() == draft_content
     
+    @patch('src.assistant.utils.os.path.expanduser')
+    def test_save_draft_with_tilde_path(self, mock_expanduser, tmp_path, capsys):
+        """Test saving draft to path with tilde (~/dds)"""
+        draft_content = "Draft saved to tilde path"
+        mock_expanduser.return_value = str(tmp_path / "dds" / "draft.txt")
+        
+        save_draft_to_file(draft_content, "~/dds/draft.txt")
+        
+        # Check that directory was created and file was saved
+        expected_file = tmp_path / "dds" / "draft.txt"
+        assert expected_file.parent.exists()
+        assert expected_file.exists()
+        assert expected_file.read_text() == draft_content
+        
+        captured = capsys.readouterr()
+        assert f"Saving draft to {expected_file}..." in captured.out
+        mock_expanduser.assert_called_once_with("~/dds/draft.txt")
+
     def test_save_draft_permission_error(self, tmp_path):
         """Test handling permission error when saving draft"""
         draft_content = "Permission test draft"

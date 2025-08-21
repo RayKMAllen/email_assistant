@@ -83,8 +83,14 @@ def save_draft_to_file(draft: str, filepath=None) -> None:
 
         filename = make_now_filename()
         filepath = os.path.join(drafts_dir, filename)
+    else:
+        # Expand user path (e.g., ~/dds -> /home/user/dds) and ensure directory exists
+        filepath = os.path.expanduser(filepath)
+        directory = os.path.dirname(filepath)
+        if directory:  # Only create directory if filepath contains a directory component
+            os.makedirs(directory, exist_ok=True)
 
-    # Save the draft to the
+    # Save the draft to the file
     print(f"Saving draft to {filepath}...")
     with open(filepath, "w") as f:
         f.write(draft)

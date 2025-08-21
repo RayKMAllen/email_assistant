@@ -193,6 +193,13 @@ class ConversationalResponseGenerator:
     
     def _generate_main_response(self, intent: str, operation_result: Any) -> str:
         """Generate the main response based on intent and result"""
+        # Special handling for CONTINUE_WORKFLOW that results in draft creation
+        if intent == 'CONTINUE_WORKFLOW' and isinstance(operation_result, dict) and 'draft' in operation_result:
+            # Treat this as a draft reply response
+            draft_templates = self.response_templates['DRAFT_REPLY']['success']
+            template = random.choice(draft_templates)
+            return self._format_draft_reply_response(template, operation_result)
+        
         if intent not in self.response_templates:
             return ""
         

@@ -529,7 +529,11 @@ User message: "{user_input}"
 
 Classify the intent as one of: {', '.join(valid_intents)}
 
-Consider the conversation context and current state when determining intent.
+IMPORTANT CONTEXT RULES:
+- If the user previously declined an offer (said "no") and now says something like "ok fine", "yes", "okay", this usually means CONTINUE_WORKFLOW (they changed their mind and want to proceed)
+- If the current state is "info_extracted" and user says affirmative words after declining, they likely want to CONTINUE_WORKFLOW (draft a reply)
+- Only use CLARIFICATION_NEEDED if the user's message is truly ambiguous and doesn't fit any workflow pattern
+- Consider the natural flow: after declining a draft offer, saying "ok fine" typically means accepting the original offer
 
 Return your response in this exact JSON format:
 {{
