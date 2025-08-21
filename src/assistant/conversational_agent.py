@@ -254,15 +254,37 @@ class ConversationalEmailAgent:
     def _handle_save_draft(self, parameters: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
         """Handle saving the current draft"""
         try:
-            if not self.email_processor.last_draft:
-                return {'error': 'No draft available to save'}, False
+            draft_to_save = None
+            
+            # Check if we have a currently viewed session with a draft
+            if self.state_manager.context.currently_viewed_session:
+                viewed_session = self.state_manager.context.get_session_by_id(
+                    self.state_manager.context.currently_viewed_session
+                )
+                if viewed_session and viewed_session.current_draft:
+                    draft_to_save = viewed_session.current_draft
+                    # Clear the viewed session after using it
+                    self.state_manager.context.currently_viewed_session = None
+            
+            # Fall back to current active draft if no viewed session draft
+            if not draft_to_save:
+                if not self.email_processor.last_draft:
+                    return {'error': 'No draft available to save'}, False
+                draft_to_save = self.email_processor.last_draft
             
             # Determine save location and method
             filepath = parameters.get('filepath')
             cloud = parameters.get('cloud', False)
             
-            # Save the draft
-            self.email_processor.save_draft(filepath=filepath, cloud=cloud)
+            # Save the draft by temporarily setting it as the current draft
+            original_draft = self.email_processor.last_draft
+            self.email_processor.last_draft = draft_to_save
+            
+            try:
+                self.email_processor.save_draft(filepath=filepath, cloud=cloud)
+            finally:
+                # Restore original draft
+                self.email_processor.last_draft = original_draft
             
             # Determine actual filepath for response
             if not filepath:
@@ -349,6 +371,9 @@ class ConversationalEmailAgent:
             session = self.state_manager.context.get_session_by_id(session_id)
             if not session:
                 return {'error': f'Session {session_id} not found'}, False
+            
+            # Set this as the currently viewed session for subsequent operations
+            self.state_manager.context.currently_viewed_session = session_id
             
             return {
                 'session': {

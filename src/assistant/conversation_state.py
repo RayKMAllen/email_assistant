@@ -47,6 +47,9 @@ class ConversationContext:
     # Session history (preserves all emails and their data)
     email_sessions: List[EmailSession] = field(default_factory=list)
     
+    # Currently viewed session (for operations like save on viewed sessions)
+    currently_viewed_session: Optional[str] = None
+    
     # General conversation context
     user_preferences: Dict[str, Any] = field(default_factory=dict)
     conversation_history: List[Dict[str, str]] = field(default_factory=list)
@@ -69,11 +72,15 @@ class ConversationContext:
     def archive_current_email_session(self):
         """Archive the current email session to preserve it in history"""
         if self.email_content:
+            # Calculate drafts for this session only by excluding drafts from previous sessions
+            previous_draft_count = sum(len(session.drafts) for session in self.email_sessions)
+            current_session_drafts = self.draft_history[previous_draft_count:].copy()
+            
             # Create a session record for the current email
             session = EmailSession(
                 email_content=self.email_content,
                 extracted_info=self.extracted_info.copy() if self.extracted_info else None,
-                drafts=self.draft_history.copy(),
+                drafts=current_session_drafts,
                 current_draft=self.current_draft,
                 timestamp=datetime.now(),
                 email_id=f"email_{len(self.email_sessions) + 1}"
@@ -116,11 +123,15 @@ class ConversationContext:
         
         # Include current session if active
         if self.email_content:
+            # Calculate drafts for current session only by excluding drafts from previous sessions
+            previous_draft_count = sum(len(session.drafts) for session in self.email_sessions)
+            current_session_draft_count = len(self.draft_history) - previous_draft_count
+            
             current_summary = {
                 'session_id': 'current',
                 'timestamp': datetime.now().isoformat(),
                 'has_extracted_info': self.extracted_info is not None,
-                'draft_count': len(self.draft_history),
+                'draft_count': current_session_draft_count,
                 'has_current_draft': self.current_draft is not None,
                 'is_current': True
             }

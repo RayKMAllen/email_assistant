@@ -194,7 +194,30 @@ class ConversationalResponseGenerator:
         # Generate main response based on intent
         main_response = self._generate_main_response(intent, operation_result)
         
-        # Add proactive guidance
+        # For SAVE_DRAFT, check if the save actually completed successfully
+        # If it did, show completion guidance instead of ready-to-save guidance
+        if intent == 'SAVE_DRAFT':
+            # Check if the save operation actually completed by looking at the result
+            if isinstance(operation_result, dict) and 'filepath' in operation_result:
+                # Save completed successfully - show completion guidance
+                completion_guidance = self._generate_completion_guidance()
+                if main_response and completion_guidance:
+                    return f"{main_response}\n\n{completion_guidance}"
+                elif main_response:
+                    return main_response
+                else:
+                    return completion_guidance or "Draft saved successfully!"
+            else:
+                # Save didn't complete (maybe just preparing to save) - show normal guidance
+                guidance = self._generate_proactive_guidance()
+                if main_response and guidance:
+                    return f"{main_response}\n\n{guidance}"
+                elif main_response:
+                    return main_response
+                else:
+                    return guidance or "I'm here to help! What would you like me to do?"
+        
+        # Add proactive guidance for other intents
         guidance = self._generate_proactive_guidance()
         
         # Combine responses
@@ -463,6 +486,15 @@ class ConversationalResponseGenerator:
         
         templates = self.guidance_templates[current_state]
         return random.choice(templates)
+    
+    def _generate_completion_guidance(self) -> str:
+        """Generate appropriate guidance after completing a save operation"""
+        completion_templates = [
+            "Great! Is there anything else I can help you with? I can process another email or assist with any other email-related tasks.",
+            "All done! Do you have another email you'd like me to help with, or is there anything else I can do?",
+            "Perfect! Feel free to share another email if you need help with more correspondence.",
+        ]
+        return random.choice(completion_templates)
     
     def _generate_error_response(self, intent: str, error_details: Any) -> str:
         """Generate helpful error responses that maintain conversational flow"""
